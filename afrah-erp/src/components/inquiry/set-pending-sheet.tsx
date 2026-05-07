@@ -1,0 +1,146 @@
+"use client";
+
+import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
+import { toast } from "@/components/ui/toaster";
+import type { Inquiry } from "@/lib/types/database";
+
+interface SetPendingSheetProps {
+  inquiry: Inquiry;
+  open: boolean;
+  onClose: () => void;
+}
+
+export function SetPendingSheet({
+  inquiry,
+  open,
+  onClose,
+}: SetPendingSheetProps) {
+  const t = useTranslations("inquiries.pending");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [form, setForm] = useState({
+    reason: "call_again" as "call_again" | "pending_deposit",
+    notes: "",
+    scheduledAt: "",
+  });
+
+  async function handleSubmit() {
+    if (!form.notes) return;
+    setIsSubmitting(true);
+    await new Promise((r) => setTimeout(r, 800));
+    // TODO: supabase.rpc("set_inquiry_pending", {
+    //   inquiry_id: inquiry.id,
+    //   pending_reason: form.reason,
+    //   pending_notes: form.notes,
+    //   reminder_data: { scheduled_at: form.scheduledAt, reminder_type: "scheduled_call" }
+    // })
+    toast({
+      variant: "success",
+      title: "Inquiry set to pending",
+      description: `Reminder scheduled for ${new Date(form.scheduledAt).toLocaleString()}`,
+    });
+    setIsSubmitting(false);
+    onClose();
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onClose}>
+      <SheetContent side="right" className="flex flex-col">
+        <SheetHeader>
+          <SheetTitle>{t("title")}</SheetTitle>
+          <SheetDescription>
+            {inquiry.client?.name} · {inquiry.client?.phone_1}
+          </SheetDescription>
+        </SheetHeader>
+
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+          <div className="space-y-1.5">
+            <Label>{t("reason")}</Label>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  { value: "call_again", label: t("callAgain") },
+                  { value: "pending_deposit", label: t("pendingDeposit") },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() =>
+                    setForm((f) => ({ ...f, reason: opt.value }))
+                  }
+                  className={`rounded-xl border p-3 text-sm font-medium text-left transition-colors ${
+                    form.reason === opt.value
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>
+              {t("notes")}
+              <span className="text-destructive ml-0.5">*</span>
+            </Label>
+            <Textarea
+              value={form.notes}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, notes: e.target.value }))
+              }
+              placeholder="Describe the current situation..."
+              rows={4}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>{t("scheduleCall")}</Label>
+            <Input
+              type="datetime-local"
+              value={form.scheduledAt}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, scheduledAt: e.target.value }))
+              }
+            />
+          </div>
+        </div>
+
+        <SheetFooter>
+          <Button
+            className="w-full"
+            onClick={handleSubmit}
+            disabled={isSubmitting || !form.notes}
+          >
+            {isSubmitting && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            {t("submit")}
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+  );
+}
