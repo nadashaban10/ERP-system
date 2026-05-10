@@ -1,17 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import { PlusCircle, Search, Phone, Mail, BookMarked, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { MOCK_CLIENTS, MOCK_BOOKINGS } from "@/lib/mock-data";
 import { formatDate } from "@/lib/utils";
 import { NewClientDialog } from "./new-client-dialog";
 import { Can } from "@/components/auth/can";
+import { useVenue } from "@/lib/queries/venue";
+import {
+  useClientBookingSummaries,
+  useClientsForVenue,
+} from "@/lib/queries/clients";
 
 export function ClientsContent() {
   const t = useTranslations("clients");
@@ -19,74 +22,124 @@ export function ClientsContent() {
   const [search, setSearch] = useState("");
   const [newOpen, setNewOpen] = useState(false);
 
-  const filtered = MOCK_CLIENTS.filter(
-    (c) =>
-      !search ||
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.phone_1.includes(search) ||
-      c.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  const venueQuery = useVenue();
+  const venueId = venueQuery.data?.id;
+  const clientsQuery = useClientsForVenue(venueId);
+  const summariesQuery = useClientBookingSummaries(venueId);
 
-  function getClientBookings(clientId: string) {
-    return MOCK_BOOKINGS.filter((b) => b.client_id === clientId);
+  const venueLoading = venueQuery.isPending;
+  const listLoading = !!venueId && clientsQuery.isPending;
+  const summariesLoading = !!venueId && summariesQuery.isPending;
+
+  const clients = clientsQuery.data ?? [];
+  const summaries = summariesQuery.data ?? {};
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return clients;
+    return clients.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.phone_1.includes(search.trim()) ||
+        (c.email?.toLowerCase().includes(q) ?? false)
+    );
+  }, [clients, search]);
+
+  const showGridLoading = venueLoading || listLoading;
+
+  if (!venueLoading && !venueQuery.data) {
+    return (
+      <div className="space-y-5">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            {t("noVenue")}
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
         <Can permission="bookings.create">
-          <Button onClick={() => setNewOpen(true)} className="gap-2">
+          <Button
+            onClick={() => setNewOpen(true)}
+            className="gap-2"
+            disabled={!venueId}
+          >
             <PlusCircle className="h-4 w-4" />
             {t("new")}
           </Button>
         </Can>
       </div>
 
-      {/* Search */}
       <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder={t("search")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
+          disabled={showGridLoading}
         />
       </div>
 
       <p className="text-sm text-muted-foreground">
-        {filtered.length} client{filtered.length !== 1 ? "s" : ""}
+        {showGridLoading
+          ? t("matchCountLoading")
+          : t("matchCount", { count: filtered.length })}
       </p>
 
-      {/* Client cards grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {filtered.length === 0 ? (
+        {showGridLoading ? (
+          <>
+            {[0, 1, 2].map((i) => (
+              <Card key={i} className="overflow-hidden">
+                <CardContent className="space-y-3 p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 animate-pulse rounded-full bg-muted" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="h-4 w-40 animate-pulse rounded bg-muted" />
+                      <div className="h-3 w-28 animate-pulse rounded bg-muted" />
+                    </div>
+                  </div>
+                  <div className="h-3 w-24 animate-pulse rounded bg-muted" />
+                </CardContent>
+              </Card>
+            ))}
+          </>
+        ) : filtered.length === 0 ? (
           <div className="col-span-full flex flex-col items-center justify-center py-16 text-muted-foreground">
-            <User className="h-10 w-10 mb-3 opacity-20" />
+            <User className="mb-3 h-10 w-10 opacity-20" />
             <p className="text-sm">{t("noClients")}</p>
           </div>
         ) : (
           filtered.map((client) => {
-            const bookings = getClientBookings(client.id);
-            const lastBooking = bookings.sort(
-              (a, b) =>
-                new Date(b.event_date).getTime() -
-                new Date(a.event_date).getTime()
-            )[0];
+            const rollup = summaries[client.id];
+            const bookingCount = rollup?.count ?? 0;
+            const lastBookingDate = rollup?.lastEventDate ?? null;
 
             return (
-              <Card key={client.id} className="hover:shadow-md transition-shadow">
+              <Card
+                key={client.id}
+                className="transition-shadow hover:shadow-md"
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm shrink-0">
-                      {client.name[0]}
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+                      {client.name[0]?.toUpperCase() ?? "—"}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{client.name}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-semibold">{client.name}</p>
                       <div className="mt-1.5 space-y-1">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <Phone className="h-3 w-3 shrink-0" />
@@ -106,18 +159,24 @@ export function ClientsContent() {
                     <div className="flex items-center gap-1.5">
                       <BookMarked className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="text-xs text-muted-foreground">
-                        {bookings.length} booking{bookings.length !== 1 ? "s" : ""}
+                        {summariesLoading && !rollup
+                          ? "—"
+                          : t("bookingCountBadge", { count: bookingCount })}
                       </span>
                     </div>
-                    {lastBooking && (
+                    {lastBookingDate ? (
                       <span className="text-xs text-muted-foreground">
-                        Last: {formatDate(lastBooking.event_date, locale)}
+                        {t("lastBookingWithDate", {
+                          date: formatDate(lastBookingDate, locale),
+                        })}
                       </span>
-                    )}
+                    ) : summariesLoading ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : null}
                   </div>
 
                   {client.notes && (
-                    <p className="mt-2 text-xs text-muted-foreground line-clamp-1 italic">
+                    <p className="mt-2 line-clamp-1 text-xs italic text-muted-foreground">
                       {client.notes}
                     </p>
                   )}
@@ -149,7 +208,11 @@ export function ClientsContent() {
       </div>
 
       <Can permission="bookings.create">
-        <NewClientDialog open={newOpen} onClose={() => setNewOpen(false)} />
+        <NewClientDialog
+          venueId={venueId ?? null}
+          open={newOpen}
+          onClose={() => setNewOpen(false)}
+        />
       </Can>
     </div>
   );

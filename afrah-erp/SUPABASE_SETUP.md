@@ -438,6 +438,49 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_payments_recalc
   AFTER INSERT OR DELETE ON payments
   FOR EACH ROW EXECUTE FUNCTION recalc_booking_payments();
+
+-- ─── Reminder fired → in-app notification (bell reads `notifications` table) ───
+-- When a cron/Edge job sets `inquiry_reminders.status` from `pending` to `fired`,
+-- this creates one row per assignee. Pair with §12 Edge Function or pg_cron that
+-- only UPDATES reminders to `fired` — do not also INSERT notifications there (see §13 Edge Functions).
+CREATE OR REPLACE FUNCTION notify_reminder_due()
+RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  v_inquiry inquiries%ROWTYPE;
+  v_client  clients%ROWTYPE;
+BEGIN
+  IF TG_OP = 'UPDATE'
+     AND NEW.status = 'fired'
+     AND OLD.status = 'pending'
+  THEN
+    SELECT * INTO v_inquiry FROM inquiries WHERE id = NEW.inquiry_id;
+    SELECT * INTO v_client FROM clients WHERE id = v_inquiry.client_id;
+
+    INSERT INTO notifications (
+      user_id, venue_id, type, title, body, reference_id, reference_type
+    ) VALUES (
+      NEW.assigned_to,
+      NEW.venue_id,
+      'reminder_due',
+      CASE NEW.reminder_type
+        WHEN 'scheduled_call' THEN 'Follow-up call due'
+        WHEN 'deposit_follow_up' THEN 'Pending deposit follow-up'
+        ELSE 'Reminder due'
+      END,
+      'Client: ' || COALESCE(v_client.name, '') || ' · ' || COALESCE(v_client.phone_1, ''),
+      NEW.inquiry_id,
+      'inquiry'
+    );
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER trg_inquiry_reminders_notify
+  AFTER UPDATE OF status ON inquiry_reminders
+  FOR EACH ROW
+  EXECUTE FUNCTION notify_reminder_due();
 ```
 
 ---
@@ -550,42 +593,45 @@ $$;
 
 ### 8.2 `check_availability` (shift-based)
 
+PostgREST sends JSON keys that **must match** the SQL parameter names exactly. The app uses **`p_event_date`** and **`p_exclude_booking`** (see `runCheckAvailabilityRpc`).
+
 ```sql
 CREATE OR REPLACE FUNCTION check_availability(
   p_hall_id uuid,
-  p_date date,
+  p_event_date date,
   p_shift shift_enum,
-  p_exclude_booking_id uuid DEFAULT NULL
-) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER AS $$
+  p_exclude_booking uuid DEFAULT NULL
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  conflict record;
+  v_existing bookings%ROWTYPE;
 BEGIN
-  SELECT b.status, c.name AS client_name INTO conflict
-    FROM bookings b
-    JOIN clients c ON c.id = b.client_id
-    WHERE b.hall_id = p_hall_id
-      AND b.event_date = p_date
-      AND b.status != 'cancelled'
-      AND b.id != COALESCE(p_exclude_booking_id, '00000000-0000-0000-0000-000000000000'::uuid)
-      AND (
-        b.shift = p_shift
-        OR (b.shift = 'full_day' AND p_shift IN ('morning', 'evening'))
-        OR (p_shift = 'full_day' AND b.shift IN ('morning', 'evening'))
-      )
-    LIMIT 1;
+  SELECT * INTO v_existing
+  FROM bookings
+  WHERE hall_id = p_hall_id
+    AND event_date = p_event_date
+    AND status != 'cancelled'
+    AND (p_exclude_booking IS NULL OR id != p_exclude_booking)
+    AND (
+      shift = p_shift
+      OR shift = 'full_day'
+      OR (p_shift = 'full_day' AND shift IN ('morning', 'evening'))
+    )
+  LIMIT 1;
 
-  IF FOUND THEN
-    RETURN jsonb_build_object(
-      'available', false,
-      'status', conflict.status,
-      'client_name', conflict.client_name
-    );
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('available', true);
   END IF;
 
-  RETURN jsonb_build_object('available', true);
+  RETURN jsonb_build_object(
+    'available', false,
+    'status', v_existing.status,
+    'booking_id', v_existing.id
+  );
 END;
 $$;
 ```
+
+Optional UX: join `clients` and add `'client_name', c.name` to the conflict payload if you want the wizard to show who holds the slot (the UI uses `client_name` when present).
 
 ### 8.3 `check_slot_overlap` (slot-based)
 
@@ -615,69 +661,105 @@ $$;
 
 ### 8.4 `create_booking`
 
+PostgREST passes the JSON payload as **`p_data`** — the app calls:
+
+`supabase.rpc("create_booking", { p_data: { ... } })`.
+
+Expected JSON keys align with `buildCreateBookingJson` in `src/lib/queries/bookings.ts` (including **`client_phone_2`** for `clients.phone_2`, plus legacy **`client_phone2`**).
+
+Use **`get_user_venue_id()`** here only if that helper exists in your DB; otherwise substitute **`current_venue_id()`** (or your project’s equivalent).
+
 ```sql
-CREATE OR REPLACE FUNCTION create_booking(booking_data jsonb)
-RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER AS $$
+CREATE OR REPLACE FUNCTION create_booking(p_data jsonb)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  v_venue uuid := current_venue_id();
-  v_client_id uuid;
-  v_booking_id uuid;
-  v_avail jsonb;
+  v_venue_id    UUID := get_user_venue_id();
+  v_client_id   UUID;
+  v_booking_id  UUID;
+  v_avail       JSONB;
 BEGIN
-  -- Resolve or create client
-  v_client_id := (booking_data->>'client_id')::uuid;
-  IF v_client_id IS NULL THEN
+  -- Create client inline if phone provided and not found
+  IF (p_data->>'client_id') IS NULL OR (p_data->>'client_id') = '' THEN
     INSERT INTO clients (venue_id, name, phone_1, phone_2, email, notes)
-      VALUES (v_venue,
-              booking_data->>'client_name',
-              booking_data->>'client_phone',
-              NULLIF(booking_data->>'client_phone2', ''),
-              NULLIF(booking_data->>'client_email', ''),
-              NULLIF(booking_data->>'client_notes', ''))
-      RETURNING id INTO v_client_id;
+    VALUES (
+      v_venue_id,
+      p_data->>'client_name',
+      p_data->>'client_phone',
+      COALESCE(
+        NULLIF(TRIM(p_data->>'client_phone_2'), ''),
+        NULLIF(TRIM(p_data->>'client_phone2'), '')
+      ),
+      NULLIF(TRIM(p_data->>'client_email'), ''),
+      NULLIF(TRIM(p_data->>'client_notes'), '')
+    )
+    RETURNING id INTO v_client_id;
+  ELSE
+    v_client_id := (p_data->>'client_id')::UUID;
   END IF;
 
-  -- Check availability
-  v_avail := check_availability(
-    (booking_data->>'hall_id')::uuid,
-    (booking_data->>'event_date')::date,
-    (booking_data->>'shift')::shift_enum
-  );
-  IF NOT (v_avail->>'available')::boolean THEN
-    RAISE EXCEPTION 'Slot not available'
-      USING ERRCODE = 'P0001', DETAIL = v_avail::text;
+  -- Availability check (shift-based)
+  IF (p_data->>'shift') IS NOT NULL AND TRIM(p_data->>'shift') <> '' THEN
+    v_avail := check_availability(
+      (p_data->>'hall_id')::UUID,
+      (p_data->>'event_date')::DATE,
+      (p_data->>'shift')::shift_enum
+    );
+    IF NOT COALESCE((v_avail->>'available')::BOOLEAN, FALSE) THEN
+      RETURN jsonb_build_object('error', 'slot_unavailable', 'detail', v_avail);
+    END IF;
   END IF;
 
-  -- Insert booking
+  -- Availability check (slot-based)
+  IF (p_data->>'slot_id') IS NOT NULL AND TRIM(p_data->>'slot_id') <> '' THEN
+    DECLARE
+      v_slot hall_slots%ROWTYPE;
+    BEGIN
+      SELECT * INTO v_slot FROM hall_slots WHERE id = (p_data->>'slot_id')::UUID;
+      v_avail := check_slot_overlap(
+        (p_data->>'hall_id')::UUID,
+        (p_data->>'event_date')::DATE,
+        v_slot.start_time,
+        v_slot.end_time,
+        NULL
+      );
+      IF NOT COALESCE((v_avail->>'available')::BOOLEAN, FALSE) THEN
+        RETURN jsonb_build_object('error', 'slot_unavailable', 'detail', v_avail);
+      END IF;
+    END;
+  END IF;
+
   INSERT INTO bookings (
     venue_id, hall_id, event_type_id, package_id, client_id,
     event_date, shift, slot_id, start_time, end_time,
     status, source, total_amount, guest_count, assigned_to, notes,
     hold_expires_at
   ) VALUES (
-    v_venue,
-    (booking_data->>'hall_id')::uuid,
-    (booking_data->>'event_type_id')::uuid,
-    NULLIF(booking_data->>'package_id', '')::uuid,
+    v_venue_id,
+    (p_data->>'hall_id')::UUID,
+    (p_data->>'event_type_id')::UUID,
+    NULLIF(TRIM(p_data->>'package_id'), '')::UUID,
     v_client_id,
-    (booking_data->>'event_date')::date,
-    NULLIF(booking_data->>'shift', '')::shift_enum,
-    NULLIF(booking_data->>'slot_id', '')::uuid,
-    (booking_data->>'start_time')::time,
-    (booking_data->>'end_time')::time,
-    (booking_data->>'status')::booking_status,
-    (booking_data->>'source')::booking_source,
-    NULLIF(booking_data->>'total_amount', '')::numeric,
-    NULLIF(booking_data->>'guest_count', '')::integer,
-    NULLIF(booking_data->>'assigned_to', ''),
-    NULLIF(booking_data->>'notes', ''),
-    NULLIF(booking_data->>'hold_expires_at', '')::timestamptz
-  ) RETURNING id INTO v_booking_id;
+    (p_data->>'event_date')::DATE,
+    NULLIF(TRIM(p_data->>'shift'), '')::shift_enum,
+    NULLIF(TRIM(p_data->>'slot_id'), '')::UUID,
+    COALESCE((p_data->>'start_time')::TIME, '00:00'),
+    COALESCE((p_data->>'end_time')::TIME, '00:01'),
+    COALESCE(NULLIF(TRIM(p_data->>'status'), '')::booking_status, 'confirmed'),
+    (p_data->>'source')::booking_source,
+    NULLIF(TRIM(p_data->>'total_amount'), '')::DECIMAL,
+    NULLIF(TRIM(p_data->>'guest_count'), '')::INTEGER,
+    NULLIF(TRIM(p_data->>'assigned_to'), ''),
+    NULLIF(TRIM(p_data->>'notes'), ''),
+    NULLIF(TRIM(p_data->>'hold_expires_at'), '')::TIMESTAMPTZ
+  )
+  RETURNING id INTO v_booking_id;
 
-  RETURN jsonb_build_object('booking_id', v_booking_id);
+  RETURN jsonb_build_object('booking_id', v_booking_id, 'client_id', v_client_id);
 END;
 $$;
 ```
+
+**Note:** If your project renamed enums (e.g. `booking_status_enum`), adjust the casts. If `check_slot_overlap` differs from §8.3, align the call signature.
 
 ### 8.5 `cancel_booking`
 
@@ -805,59 +887,82 @@ $$;
 
 ### 8.8 `convert_inquiry_to_booking`
 
+Runs **`create_booking`** first; if that JSON payload contains **`error`**, returns it **before** reading **`booking_id`**. Then links the inquiry and completes open reminders.
+
+PostgREST + JS use **`p_booking_data`** for the booking JSON.
+
 ```sql
 CREATE OR REPLACE FUNCTION convert_inquiry_to_booking(
   p_inquiry_id uuid,
   p_booking_data jsonb
-) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER AS $$
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  v_booking_id uuid;
-  v_result jsonb;
+  v_result     JSONB;
+  v_booking_id UUID;
 BEGIN
   v_result := create_booking(p_booking_data);
-  v_booking_id := (v_result->>'booking_id')::uuid;
+
+  IF v_result ? 'error' THEN
+    RETURN v_result;
+  END IF;
+
+  v_booking_id := (v_result->>'booking_id')::UUID;
 
   UPDATE inquiries
-    SET status = 'converted', booking_id = v_booking_id
-    WHERE id = p_inquiry_id AND venue_id = current_venue_id();
+  SET status = 'converted', booking_id = v_booking_id, updated_at = NOW()
+  WHERE id = p_inquiry_id;
+
+  UPDATE inquiry_reminders
+  SET status = 'completed', outcome = 'converted'::reminder_outcome
+  WHERE inquiry_id = p_inquiry_id AND status IN ('pending', 'fired');
 
   RETURN jsonb_build_object('booking_id', v_booking_id);
 END;
 $$;
 ```
 
+Adjust **`reminder_outcome`** cast if your enum type name differs (e.g. plain `reminder_outcome` without schema). Add **`AND venue_id = current_venue_id()`** on `UPDATE inquiries` if you rely on that helper elsewhere.
+
 ### 8.9 `set_inquiry_pending`
+
+PostgREST JSON keys must match parameter names: **`p_reason`**, **`p_notes`** (not `p_pending_*`).  
+`p_reminder_data` should include **`reminder_type`**, **`scheduled_at`** (ISO timestamps); optional **`assigned_to`** (UUID string) defaults to **`auth.uid()`**.
 
 ```sql
 CREATE OR REPLACE FUNCTION set_inquiry_pending(
   p_inquiry_id uuid,
-  p_pending_reason pending_reason,
-  p_pending_notes text,
+  p_reason pending_reason,
+  p_notes text,
   p_reminder_data jsonb
-) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER AS $$
+) RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  v_venue uuid := current_venue_id();
-  v_reminder_id uuid;
+  v_reminder_id UUID;
 BEGIN
   UPDATE inquiries
-    SET status = 'pending',
-        pending_reason = p_pending_reason,
-        pending_notes = p_pending_notes
-    WHERE id = p_inquiry_id AND venue_id = v_venue;
+  SET status = 'pending',
+      pending_reason = p_reason,
+      pending_notes = p_notes,
+      updated_at = NOW()
+  WHERE id = p_inquiry_id;
 
   INSERT INTO inquiry_reminders (
     inquiry_id, venue_id, assigned_to, reminder_type, scheduled_at, status
   ) VALUES (
-    p_inquiry_id, v_venue, auth.uid(),
+    p_inquiry_id,
+    (SELECT venue_id FROM inquiries WHERE id = p_inquiry_id),
+    COALESCE((p_reminder_data->>'assigned_to')::UUID, auth.uid()),
     (p_reminder_data->>'reminder_type')::reminder_type,
-    (p_reminder_data->>'scheduled_at')::timestamptz,
+    (p_reminder_data->>'scheduled_at')::TIMESTAMPTZ,
     'pending'
-  ) RETURNING id INTO v_reminder_id;
+  )
+  RETURNING id INTO v_reminder_id;
 
   RETURN jsonb_build_object('reminder_id', v_reminder_id);
 END;
 $$;
 ```
+
+If your enum is named **`reminder_type_enum`**, change the cast accordingly.
 
 ### 8.10 `log_no_response`
 
@@ -1168,22 +1273,13 @@ Deno.serve(async () => {
     return new Response(JSON.stringify({ fired_count: 0 }), { status: 200 });
   }
 
-  // Mark as fired and create notifications
+  // Mark as fired — DB trigger `notify_reminder_due` (§6) inserts into `notifications`.
+  // Do not duplicate a `notifications` insert here when that trigger is deployed.
   for (const reminder of due) {
     await supabase
       .from("inquiry_reminders")
       .update({ status: "fired", fired_at: new Date().toISOString() })
       .eq("id", reminder.id);
-
-    await supabase.from("notifications").insert({
-      user_id: reminder.assigned_to,
-      venue_id: reminder.venue_id,
-      type: "reminder_due",
-      title: "Reminder Due",
-      body: `Follow up with ${(reminder as any).inquiries?.clients?.name}`,
-      reference_id: reminder.inquiry_id,
-      reference_type: "inquiry",
-    });
   }
 
   return new Response(
@@ -1314,7 +1410,7 @@ async function handleSubmit() {
   const supabase = createClient();
 
   const { data: result, error } = await supabase.rpc("create_booking", {
-    booking_data: {
+    p_data: {
       hall_id: data.hallId,
       event_type_id: "...", // pick from event_record_types
       package_id: data.packageId,

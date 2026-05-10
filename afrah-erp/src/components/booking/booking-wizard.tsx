@@ -1,10 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   Dialog,
   DialogContent,
@@ -35,10 +32,29 @@ import {
   Loader2,
   Check,
 } from "lucide-react";
-import { MOCK_CLIENTS, MOCK_HALLS, MOCK_PACKAGES } from "@/lib/mock-data";
 import { formatDate, formatCurrency, cn } from "@/lib/utils";
 import { toast } from "@/components/ui/toaster";
-import type { Client, Package as PackageType } from "@/lib/types/database";
+import type {
+  BookingSource,
+  BookingStatus,
+  Client,
+  Package as PackageType,
+  ShiftEnum,
+} from "@/lib/types/database";
+import { useVenue } from "@/lib/queries/venue";
+import { useClientsForVenue } from "@/lib/queries/clients";
+import { useActiveHalls } from "@/lib/queries/halls";
+import { usePackages } from "@/lib/queries/packages";
+import {
+  buildCreateBookingJson,
+  runCheckAvailabilityRpc,
+  useCreateBooking,
+} from "@/lib/queries/bookings";
+import { usePrimaryShiftBasedEventTypeIdForHall } from "@/lib/queries/event-types";
+import {
+  useConvertInquiryToBooking,
+  type InquiryBookingConversionContext,
+} from "@/lib/queries/inquiries";
 
 // ─── Wizard State ─────────────────────────────────────────────────────────────
 
@@ -74,10 +90,18 @@ interface BookingWizardProps {
   open: boolean;
   onClose: () => void;
   defaultDate?: string;
+  /** When set, submit calls `convert_inquiry_to_booking` with this inquiry id and the built booking JSON. */
+  conversion?: InquiryBookingConversionContext | null;
 }
 
-export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps) {
+export function BookingWizard({
+  open,
+  onClose,
+  defaultDate,
+  conversion,
+}: BookingWizardProps) {
   const t = useTranslations("bookings.wizard");
+  const tc = useTranslations("common");
   const locale = useLocale();
 
   const [step, setStep] = useState(0);
@@ -88,6 +112,7 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
     msg: string;
   } | null>(null);
   const [isCheckingAvailability, setIsCheckingAvailability] = useState(false);
+  const appliedConversionInquiryId = useRef<string | null>(null);
 
   const [data, setData] = useState<WizardData>({
     clientId: null,
@@ -96,7 +121,7 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
     clientPhone2: "",
     clientEmail: "",
     isNewClient: false,
-    hallId: MOCK_HALLS[0]?.id ?? "",
+    hallId: "",
     eventDate: defaultDate ?? "",
     shift: "evening",
     guestCount: "",
@@ -108,6 +133,60 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
     notes: "",
     source: "phone",
   });
+
+  const venueQuery = useVenue();
+  const venueId = venueQuery.data?.id;
+  const { data: halls = [] } = useActiveHalls();
+  const packagesQuery = usePackages();
+  const packagesList = (packagesQuery.data ?? []).filter((p) => p.is_active);
+
+  const clientsQuery = useClientsForVenue(open ? venueId : undefined);
+  const allClients = clientsQuery.data ?? [];
+
+  const createBookingMutation = useCreateBooking();
+  const convertInquiryMutation = useConvertInquiryToBooking();
+
+  const eventTypeIdQuery = usePrimaryShiftBasedEventTypeIdForHall(
+    data.hallId || undefined,
+    open && !!venueId && !!data.hallId
+  );
+
+  useEffect(() => {
+    if (!open || !halls.length) return;
+    setData((d) => (d.hallId ? d : { ...d, hallId: halls[0].id }));
+  }, [open, halls]);
+
+  useEffect(() => {
+    if (!open) {
+      appliedConversionInquiryId.current = null;
+      return;
+    }
+    if (!conversion) return;
+    if (appliedConversionInquiryId.current === conversion.inquiryId) return;
+    appliedConversionInquiryId.current = conversion.inquiryId;
+
+    setData((d) => ({
+      ...d,
+      clientId: conversion.clientId,
+      clientName: conversion.clientName,
+      clientPhone: conversion.clientPhone,
+      clientPhone2: conversion.clientPhone2,
+      clientEmail: conversion.clientEmail,
+      isNewClient: false,
+      eventDate: conversion.desiredDate ?? defaultDate ?? d.eventDate ?? "",
+      guestCount:
+        conversion.guestCount != null ? String(conversion.guestCount) : d.guestCount,
+      source: conversion.bookingSource,
+      notes: conversion.inquiryNotes
+        ? d.notes.trim()
+          ? `${conversion.inquiryNotes}\n\n${d.notes}`
+          : conversion.inquiryNotes
+        : d.notes,
+    }));
+    setStep(0);
+    setAvailabilityMsg(null);
+    setClientSearch("");
+  }, [open, conversion, defaultDate]);
 
   function update(partial: Partial<WizardData>) {
     setData((prev) => ({ ...prev, ...partial }));
@@ -141,23 +220,109 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
     if (!data.hallId || !data.eventDate || !data.shift) return;
     setIsCheckingAvailability(true);
     setAvailabilityMsg(null);
-    await new Promise((r) => setTimeout(r, 600));
-    // TODO: supabase.rpc("check_availability", ...)
-    setAvailabilityMsg({ available: true, msg: "Slot is available!" });
+    const result = await runCheckAvailabilityRpc({
+      hallId: data.hallId,
+      date: data.eventDate,
+      shift: data.shift,
+    });
     setIsCheckingAvailability(false);
+
+    if (!result) {
+      setAvailabilityMsg({
+        available: true,
+        msg: t("configureBackend"),
+      });
+      return;
+    }
+
+    if (!result.available) {
+      const conflictHint =
+        result.client_name != null
+          ? result.client_name
+          : result.booking_id != null
+            ? `#${result.booking_id.slice(0, 8)}`
+            : null;
+      setAvailabilityMsg({
+        available: false,
+        msg: conflictHint
+          ? `${t("slotUnavailable")} (${conflictHint})`
+          : t("slotUnavailable"),
+      });
+      return;
+    }
+
+    setAvailabilityMsg({
+      available: true,
+      msg: t("slotAvailable"),
+    });
   }
 
   async function handleSubmit() {
-    setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    // TODO: supabase.rpc("create_booking", { booking_data: data })
-    toast({
-      variant: "success",
-      title: "Booking created!",
-      description: `Booking for ${data.clientName} on ${formatDate(data.eventDate, locale)}`,
+    if (!venueId) return;
+    const eventTypeId = eventTypeIdQuery.data;
+    if (!eventTypeId) {
+      toast({
+        variant: "destructive",
+        title: t("bookingCreateFailedTitle"),
+        description: t("noEventTypeConfigured"),
+      });
+      return;
+    }
+
+    const totalAmt = parseFloat(data.totalAmount);
+    const gc = parseInt(data.guestCount, 10);
+    const bookingJson = buildCreateBookingJson({
+      hallId: data.hallId,
+      eventTypeId,
+      packageId: data.packageId,
+      clientId: data.clientId,
+      clientName: data.clientName,
+      clientPhone: data.clientPhone,
+      clientPhone2: data.clientPhone2,
+      clientEmail: data.clientEmail,
+      eventDate: data.eventDate,
+      shift: data.shift as ShiftEnum,
+      totalAmount: Number.isNaN(totalAmt) ? null : totalAmt,
+      guestCount: Number.isNaN(gc) ? null : gc,
+      status: data.status as BookingStatus,
+      source: data.source as BookingSource,
+      assignedTo: data.assignedTo,
+      notes: data.notes,
+      holdExpiresAt: data.status === "on_hold" ? data.holdExpiresAt || null : null,
     });
-    setIsSubmitting(false);
-    handleClose();
+
+    setIsSubmitting(true);
+    try {
+      if (conversion) {
+        await convertInquiryMutation.mutateAsync({
+          inquiryId: conversion.inquiryId,
+          booking_data: bookingJson,
+        });
+        toast({
+          variant: "success",
+          title: t("bookingConvertedToast"),
+          description: t("bookingConvertedToastDesc", {
+            name: data.clientName,
+            date: formatDate(data.eventDate, locale),
+          }),
+        });
+      } else {
+        await createBookingMutation.mutateAsync(bookingJson);
+        toast({
+          variant: "success",
+          title: t("bookingCreatedToast"),
+          description: t("bookingCreatedToastDesc", {
+            name: data.clientName,
+            date: formatDate(data.eventDate, locale),
+          }),
+        });
+      }
+      handleClose();
+    } catch {
+      /* mutation shows toast */
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   function handleClose() {
@@ -170,7 +335,7 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
       clientPhone2: "",
       clientEmail: "",
       isNewClient: false,
-      hallId: MOCK_HALLS[0]?.id ?? "",
+      hallId: "",
       eventDate: defaultDate ?? "",
       shift: "evening",
       guestCount: "",
@@ -187,7 +352,7 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
   }
 
   const filteredClients = clientSearch
-    ? MOCK_CLIENTS.filter(
+    ? allClients.filter(
         (c) =>
           c.phone_1.includes(clientSearch) ||
           c.name.toLowerCase().includes(clientSearch.toLowerCase())
@@ -204,10 +369,15 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
   const stepLabels = [t("step1"), t("step2"), t("step3"), t("step4")];
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) handleClose();
+      }}
+    >
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogTitle>{conversion ? t("titleFromInquiry") : t("title")}</DialogTitle>
         </DialogHeader>
 
         {/* Step indicators */}
@@ -346,16 +516,22 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <Label>Hall</Label>
+                  <Label>{t("hallLabel")}</Label>
                   <Select
                     value={data.hallId}
-                    onValueChange={(v) => update({ hallId: v })}
+                    onValueChange={(v) =>
+                      update({ hallId: v, packageId: null, totalAmount: "" })
+                    }
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue
+                        placeholder={
+                          halls.length ? undefined : t("noHallsConfigured")
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      {MOCK_HALLS.map((h) => (
+                      {halls.map((h) => (
                         <SelectItem key={h.id} value={h.id}>
                           {h.name}
                         </SelectItem>
@@ -364,7 +540,7 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
                   </Select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label>{t("guestCount" in t ? "guestCount" : "Guest Count")}</Label>
+                  <Label>{t("guestCountLabel")}</Label>
                   <Input
                     type="number"
                     value={data.guestCount}
@@ -426,7 +602,9 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
                 {isCheckingAvailability && (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 )}
-                {isCheckingAvailability ? t("checking") : "Check Availability"}
+                {isCheckingAvailability
+                  ? t("checking")
+                  : t("checkAvailability")}
               </Button>
 
               {availabilityMsg && (
@@ -452,8 +630,13 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
           {/* ─── Step 3: Package ─── */}
           {step === 2 && (
             <div className="space-y-4">
+              {packagesList.length === 0 && (
+                <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                  {t("noPackagesConfigured")}
+                </p>
+              )}
               <div className="grid grid-cols-1 gap-2.5">
-                {MOCK_PACKAGES.map((pkg) => (
+                {packagesList.map((pkg) => (
                   <button
                     key={pkg.id}
                     type="button"
@@ -515,7 +698,7 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Hall</span>
                   <span className="font-medium">
-                    {MOCK_HALLS.find((h) => h.id === data.hallId)?.name}
+                    {halls.find((h) => h.id === data.hallId)?.name}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -617,7 +800,7 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
             onClick={() => (step === 0 ? handleClose() : setStep(step - 1))}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            {step === 0 ? "Cancel" : t("back")}
+            {step === 0 ? tc("cancel") : t("back")}
           </Button>
 
           {step < 3 ? (
@@ -629,11 +812,21 @@ export function BookingWizard({ open, onClose, defaultDate }: BookingWizardProps
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           ) : (
-            <Button onClick={handleSubmit} disabled={isSubmitting}>
-              {isSubmitting && (
+            <Button
+              onClick={() => void handleSubmit()}
+              disabled={
+                isSubmitting ||
+                convertInquiryMutation.isPending ||
+                createBookingMutation.isPending ||
+                (data.status === "on_hold" && !data.holdExpiresAt)
+              }
+            >
+              {(isSubmitting ||
+                convertInquiryMutation.isPending ||
+                createBookingMutation.isPending) && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
-              {t("confirm")}
+              {conversion ? t("confirmFromInquiry") : t("confirm")}
             </Button>
           )}
         </div>

@@ -34,7 +34,20 @@
     "upcomingEvents": "Upcoming Events",
     "viewAll": "View all",
     "noEvents": "No events today",
-    "allHalls": "All Halls"
+    "allHalls": "All halls",
+    "eventsThisWeekHint": "Events in the next 7 days",
+    "outstandingBalanceHint": "Across active bookings",
+    "overdueAttentionHint": "Need immediate attention",
+    "overdueCaughtUpHint": "All caught up",
+    "recentBookingsDesc": "Latest booking activity",
+    "noRecentBookings": "No bookings yet",
+    "overdueFollowupsCard": "Overdue follow-ups",
+    "allCaughtUp": "All caught up!",
+    "followUpWasDueOn": "Due {date}",
+    "badgeNew": "new",
+    "viewHolds": "View holds",
+    "due": "due",
+    "expiringHoldBanner": "{count, plural, one {# hold expiring soon} other {# holds expiring soon}}"
   },
   "bookings": {
     "title": "Bookings",
@@ -66,6 +79,69 @@
     "editHistory": "Edit History",
     "paymentHistory": "Payment History",
     "noBookings": "No bookings found",
+    "loadingList": "Loading…",
+    "bookingCountPlural": "{count, plural, one {# booking} other {# bookings}}",
+    "dateSort": "Date {dir}",
+    "guestCountTable": "{count, plural, one {# guest} other {# guests}}",
+    "expiresOn": "Expires {date}",
+    "paidInFull": "Paid ✓",
+    "filteredByClientHint": "Filtered by client.",
+    "clearClientFilter": "Clear",
+    "cancelSuccessToast": "Booking cancelled",
+    "cancelDescriptionIntro": "This frees the slot for booking {name}. Outstanding balance (if any) remains on record.",
+    "backToBookings": "Bookings",
+    "notFoundTitle": "Booking not found",
+    "eventDetailsSection": "Event Details",
+    "keepBooking": "Keep booking",
+    "cancelBookingAction": "Cancel booking",
+    "cancelOutstandingWarning": "Outstanding balance:",
+    "editsLocked": "Edits are locked for this booking.",
+    "clientCardTitle": "Client",
+    "sourceLabel": "Source",
+    "financialsSection": "Financials",
+    "totalLabel": "Total",
+    "paidLabel": "Paid",
+    "outstandingLabel": "Outstanding",
+    "viewClients": "Clients",
+    "guestsShort": "Guests",
+    "packageFallback": "Custom",
+    "assignedLabel": "Assigned To",
+    "shiftTimeLabel": "Shift / Time",
+    "editHistoryLoading": "Loading edit history…",
+    "editHistoryEmpty": "No edits recorded",
+    "editHistoryBefore": "Before",
+    "editHistoryAfter": "After",
+    "editHistoryFinancial": "Financial adjustment:",
+    "editHistoryEditSuffix": "edit",
+    "editNoChanges": "No changes to save",
+    "editSaved": "Booking updated",
+    "editLoadingVenue": "Loading halls and packages…",
+    "editPackageChangedHint": "Package changed — financial review required",
+    "editFinancialTitle": "Financial review",
+    "editFinancialPrevPackage": "Previous package",
+    "editFinancialNewPackage": "New package",
+    "editFinancialPriceDiff": "Price difference",
+    "editFinancialResolutionLabel": "Resolution",
+    "editResolutionClientPays": "Client pays the difference",
+    "editResolutionCredit": "Apply as credit",
+    "editResolutionRefund": "Issue refund",
+    "editResolutionNoChange": "No financial change",
+    "editAgentNotesRequired": "Agent notes (required)",
+    "editAgentNotesPlaceholder": "Explain the package change for the audit log…",
+    "editFinancialBack": "Back",
+    "editFinancialConfirm": "Confirm edit",
+    "editReviewFinancial": "Review financial change →",
+    "saveEdits": "Save changes",
+    "cancellationReasons": {
+      "customer_not_reached": "Customer Not Reached",
+      "chose_another_venue": "Chose Another Venue",
+      "budget_too_high": "Budget Too High",
+      "date_not_available": "Date Not Available",
+      "no_longer_getting_married": "No Longer Getting Married",
+      "unresponsive_no_contact": "Unresponsive",
+      "hold_expired": "Hold Expired",
+      "other": "Other"
+    },
     "wizard": {
       "title": "Create New Booking",
       "step1": "Client",
@@ -93,7 +169,24 @@
       "next": "Next",
       "confirm": "Confirm Booking",
       "slotUnavailable": "This slot is unavailable",
-      "checking": "Checking availability..."
+      "checking": "Checking availability...",
+      "slotAvailable": "Slot is available",
+      "checkAvailability": "Check availability",
+      "guestCountLabel": "Guest count",
+      "hallLabel": "Hall",
+      "bookingCreatedToast": "Booking created",
+      "bookingCreatedToastDesc": "Booking for {name} on {date}",
+      "noEventTypeConfigured": "Add an active shift-based event type for this hall in Settings first.",
+      "configureBackend": "Could not verify availability (backend not ready). You may still proceed if you trust the slot.",
+      "bookingCreateFailedTitle": "Could not create booking",
+      "noPackagesConfigured": "No packages yet — enter a manual total.",
+      "noHallsConfigured": "Add an active hall in Settings.",
+      "noClientsYet": "No clients match your search.",
+      "commonCancel": "Cancel",
+      "titleFromInquiry": "Convert inquiry to booking",
+      "confirmFromInquiry": "Convert & create booking",
+      "bookingConvertedToast": "Booking created from inquiry",
+      "bookingConvertedToastDesc": "Booking for {name} on {date}. The inquiry is marked converted."
     }
   },
   "inquiries": {
@@ -114,14 +207,38 @@
     "convert": "Convert to Booking",
     "cancel": "Cancel Inquiry",
     "noInquiries": "No inquiries found",
+    "loadingList": "Loading…",
+    "inquiryCountPlural": "{count, plural, one {# inquiry} other {# inquiries}}",
+    "guestEstimate": "~{count} guests",
+    "notFound": "Inquiry not found",
+    "backToList": "Back to inquiries",
+    "createdToast": "Inquiry created",
+    "newDialog": {
+      "existingTab": "Existing client",
+      "newTab": "New client",
+      "selectClientPlaceholder": "Choose a client…",
+      "desiredDateLabel": "Desired Date",
+      "guestCountLabel": "Guest Count",
+      "guestCountPlaceholder": "~200",
+      "packageInterestLabel": "Package interest",
+      "packageInterestPlaceholder": "e.g. Gold Package",
+      "notesLabel": "Notes",
+      "submit": "Create inquiry",
+      "nameLabel": "Client name",
+      "phoneLabel": "Phone",
+      "noVenue": "No venue linked. Finish setup first."
+    },
     "pending": {
       "title": "Set Inquiry Pending",
       "reason": "Pending Reason",
       "callAgain": "Call Again",
       "pendingDeposit": "Pending Deposit",
       "notes": "Notes",
+      "notesPlaceholder": "Describe the situation and what you promised the client…",
       "scheduleCall": "Schedule Call",
-      "submit": "Set as Pending"
+      "submit": "Set as Pending",
+      "submitSuccess": "Inquiry set to pending",
+      "invalidSchedule": "Choose a valid date and time for the follow-up call."
     },
     "outcome": {
       "title": "Log Outcome",
@@ -131,10 +248,26 @@
       "reschedule": "Reschedule Call",
       "cancel": "Cancel Inquiry",
       "notes": "Outcome Notes",
+      "notesPlaceholder": "Call notes…",
       "nextCallDate": "Next Call Date",
+      "nextCallOptional": "optional; defaults to tomorrow if empty",
       "submit": "Save Outcome",
       "attempt": "Attempt {count} of 3",
-      "autoCloseWarning": "This is the final attempt. Inquiry will be auto-closed if no response."
+      "attemptBadge": "{count}/3 no-responses",
+      "autoCloseWarning": "This is the final attempt. Inquiry will be auto-closed if no response.",
+      "answeredSuccess": "Call outcome saved",
+      "needPendingReminderTitle": "No open reminder",
+      "needPendingReminderBody": "Use “Set Pending” first so this inquiry has a scheduled follow-up reminder.",
+      "noResponseLogged": "No response logged",
+      "autoClosedTitle": "Inquiry closed",
+      "autoClosedBody": "After three no-response attempts the inquiry was cancelled automatically.",
+      "convertNavigateTitle": "Bookings filtered by client",
+      "convertNavigateBody": "Create a new booking from Bookings (wizard) for this client.",
+      "convertOpenWizardTitle": "Opening booking wizard",
+      "convertOpenWizardBody": "Complete the steps to create the booking and mark this inquiry converted.",
+      "nextCallRequiredTitle": "Pick a new time",
+      "nextCallRequiredBody": "Choose a date and time for the rescheduled follow-up call.",
+      "rescheduleSuccess": "Follow-up rescheduled"
     },
     "statuses": {
       "new": "New",
@@ -153,6 +286,24 @@
       "no_longer_getting_married": "No Longer Getting Married",
       "unresponsive_no_contact": "Unresponsive",
       "other": "Other"
+    },
+    "reminderTimeline": {
+      "loading": "Loading…",
+      "empty": "No reminders yet",
+      "attemptsBanner": "{count}/3 no-response attempts.",
+      "attemptsBannerFinalHint": "The next \"no response\" will auto-close the inquiry.",
+      "typeScheduledCall": "Scheduled call",
+      "typeDepositFollowUp": "Deposit follow-up",
+      "outcomeConverted": "Converted to booking",
+      "outcomeRescheduled": "Rescheduled",
+      "outcomeCancelled": "Cancelled",
+      "outcomeNoResponse": "No response",
+      "status": {
+        "pending": "Pending",
+        "fired": "Fired",
+        "dismissed": "Dismissed",
+        "completed": "Completed"
+      }
     }
   },
   "clients": {
@@ -168,7 +319,21 @@
     "actions": "Actions",
     "viewBookings": "View Bookings",
     "edit": "Edit Client",
-    "noClients": "No clients found"
+    "noClients": "No clients found",
+    "noVenue": "No venue is linked to your account yet. Finish setup in Settings.",
+    "noVenueHint": "Link a venue before adding clients.",
+    "matchCountLoading": "Loading…",
+    "matchCount": "{count, plural, one {# client} other {# clients}}",
+    "bookingCountBadge": "{count, plural, one {# booking} other {# bookings}}",
+    "lastBookingWithDate": "Last: {date}",
+    "fullNameLabel": "Full name",
+    "fullNamePlaceholder": "Client full name",
+    "primaryPhoneLabel": "Primary phone",
+    "primaryPhonePlaceholder": "01xxxxxxxxx",
+    "secondaryPhoneLabel": "Secondary phone",
+    "notesLabel": "Notes",
+    "addClient": "Add client",
+    "clientCreatedToast": "Client added"
   },
   "calendar": {
     "title": "Calendar",
@@ -182,7 +347,8 @@
     "confirmed": "Confirmed",
     "onHold": "On Hold",
     "inquiry": "Inquiry",
-    "completed": "Completed"
+    "completed": "Completed",
+    "loadingEvents": "Loading events…"
   },
   "settings": {
     "title": "Settings",
@@ -212,7 +378,88 @@
     "editCutoff": "Edit Cutoff (days before event)",
     "language": "Language",
     "arabic": "Arabic",
-    "english": "English"
+    "english": "English",
+    "subtitle": "Configure your venue profile, halls, and packages",
+    "hallsSubtitle": "Manage your venue's halls and spaces",
+    "packagesSubtitle": "Define pricing packages for bookings",
+    "noHalls": "No halls yet — add one to start taking bookings",
+    "noPackages": "No packages yet — add one to use in the booking wizard",
+    "minCapacity": "Min capacity",
+    "amenityPlaceholder": "AC, Parking, Stage…",
+    "add": "Add",
+    "active": "Active",
+    "inactive": "Inactive",
+    "editHall": "Edit Hall",
+    "editPackage": "Edit Package",
+    "hallCreated": "Hall added",
+    "hallUpdated": "Hall updated",
+    "hallDeleted": "Hall removed",
+    "packageCreated": "Package added",
+    "packageUpdated": "Package updated",
+    "packageDeleted": "Package removed",
+    "hallFormError": "Please fill in name and a valid maximum capacity",
+    "packageFormError": "Please fill in name and a valid base price",
+    "confirmDeleteHall": "Delete this hall?",
+    "confirmDeleteHallDesc": "All bookings for this hall will keep their reference. You can deactivate the hall instead if you want to hide it without deleting.",
+    "confirmDeletePackage": "Delete this package?",
+    "confirmDeletePackageDesc": "Existing bookings using this package will keep their reference. You can deactivate the package instead.",
+    "minGuests": "Minimum guests",
+    "inclusions": "Inclusions",
+    "inclusionsPlaceholder": "Hall rental, catering, decorations, DJ…",
+    "perPersonShort": "per person",
+    "flatShort": "flat",
+    "noEventTypes": "No event types yet — add Wedding, Birthday, Engagement, etc.",
+    "eventTypeName": "Name",
+    "eventTypePlaceholder": "Wedding, Birthday…",
+    "timeModel": "Time model",
+    "shift_based": "Shift-based",
+    "slot_based": "Slot-based",
+    "eventTypeCreated": "Event type added",
+    "eventTypeDeleted": "Event type removed",
+    "confirmDeleteEventType": "Delete this event type?",
+    "loadVenueError": "Could not load venue settings",
+    "venueProfile": "Venue Profile",
+    "venueProfileDesc": "Your venue profile and contact information",
+    "primaryPhone": "Primary phone",
+    "secondaryPhone": "Secondary phone",
+    "instagramUrl": "Instagram URL",
+    "facebookUrl": "Facebook URL",
+    "editPolicy": "Edit Policy",
+    "editPolicyDesc": "Control when bookings can be edited",
+    "editCutoffHelp": "Bookings cannot be edited within this many days of the event date",
+    "managerOverride": "Manager override",
+    "managerOverrideDesc": "Allow managers to bypass the edit cutoff",
+    "billing": "Billing",
+    "days": "days"
+  },
+  "users": {
+    "title": "User management",
+    "subtitle": "Your account, permissions, and venue team from venue_users.",
+    "accessDeniedTitle": "Access denied",
+    "accessDeniedDesc": "You do not have permission to view users.",
+    "youCardTitle": "You",
+    "youCardDesc": "Your current account details.",
+    "permissionsCardTitle": "Your permissions",
+    "yourPermissionsDesc": "These determine which screens and actions you can access.",
+    "noPermissionsAssigned": "No permissions assigned.",
+    "teamTitle": "Team members",
+    "teamDesc": "Everyone linked to your venue via venue_users.",
+    "userId": "User ID",
+    "role": "Role",
+    "youBadge": "You",
+    "addedAt": "Added",
+    "loadingTeam": "Loading team…",
+    "emptyTeam": "No team rows yet.",
+    "noEmailNote": "Names and emails live in Auth; here you see the Supabase user id and role.",
+    "inviteHintTitle": "How to invite a teammate",
+    "inviteHintStep1": "Create the account in Supabase Dashboard → Authentication (invite or magic link).",
+    "inviteHintStep2": "After they accept, link them with",
+    "inviteHintFooter": "Run that in SQL (or automation) once you have their UUID. Client apps cannot securely invite without a backend or Edge Function with the service role.",
+    "clipboardCopiedTitle": "Copied to clipboard",
+    "clipboardFailedTitle": "Could not copy",
+    "copyUserIdAria": "Copy user id",
+    "inviteButton": "Invite user",
+    "closeInvite": "Close"
   },
   "payments": {
     "title": "Payment History",
@@ -234,12 +481,19 @@
     "secondPayment": "2nd Payment",
     "final": "Final Payment",
     "submit": "Log Payment",
-    "noPayments": "No payments recorded"
+    "noPayments": "No payments recorded",
+    "progressLabel": "Payment progress",
+    "percentPaid": "{pct}% paid",
+    "outstandingSuffix": "outstanding",
+    "loading": "Loading…",
+    "loggedSuccess": "Payment logged",
+    "invalidAmount": "Enter a valid amount"
   },
   "notifications": {
     "title": "Notifications",
     "markAllRead": "Mark all as read",
     "noNotifications": "No notifications",
+    "loading": "Loading…",
     "reminderDue": "Reminder Due",
     "holdExpiring": "Hold Expiring",
     "paymentOverdue": "Payment Overdue"
@@ -286,5 +540,258 @@
     "unauthorized": "You are not authorized to view this page",
     "slotTaken": "This slot is already booked",
     "editNotAllowed": "Editing is not allowed within {days} days of the event"
+  },
+  "landing": {
+    "nav": {
+      "features": "Features",
+      "howItWorks": "How it works",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "signIn": "Sign in",
+      "getStarted": "Get started"
+    },
+    "hero": {
+      "badge": "Built for Egyptian wedding venues",
+      "title": "Run your venue without losing a single booking",
+      "subtitle": "The all-in-one ERP that turns inquiries into confirmed weddings — with smart reminders, conflict-free calendar, and Egyptian payment methods built in.",
+      "cta": "Start free trial",
+      "secondary": "Sign in to your venue",
+      "trustNote": "No credit card required · Setup in under 10 minutes",
+      "preview": {
+        "todayEvents": "Today's events",
+        "outstanding": "Outstanding",
+        "newInquiries": "New inquiries",
+        "occupancy": "This week",
+        "weddingOf": "Wedding of",
+        "elGarden": "El Garden Hall",
+        "evening": "Evening",
+        "confirmed": "Confirmed",
+        "onHold": "On hold"
+      }
+    },
+    "trust": {
+      "title": "Made for the Egyptian market",
+      "subtitle": "Speaks the language. Accepts the payments. Understands the workflow.",
+      "labels": {
+        "instapay": "InstaPay",
+        "fawry": "Fawry",
+        "vodafoneCash": "Vodafone Cash",
+        "bankTransfer": "Bank Transfer",
+        "cash": "Cash",
+        "arabic": "Arabic + RTL",
+        "egp": "Egyptian Pound"
+      }
+    },
+    "problem": {
+      "tag": "Why Afrah ERP",
+      "title": "Stop losing money to chaos",
+      "subtitle": "These three problems silently drain every venue. Afrah fixes them by default.",
+      "items": [
+        {
+          "title": "Leads slip through WhatsApp",
+          "problem": "Your team forgets to follow up. The lead chooses another venue. You'll never know.",
+          "solution": "Auto-reminders after every call. 3 attempts, then the lead is auto-closed with a reason — no inquiry is forgotten."
+        },
+        {
+          "title": "Double bookings on the calendar",
+          "problem": "Two staff confirm the same hall on the same shift. The fight starts at the door.",
+          "solution": "One source of truth. Real-time conflict detection across halls, shifts, and tentative holds."
+        },
+        {
+          "title": "Payments lost in spreadsheets",
+          "problem": "InstaPay receipts in WhatsApp. Cash in a notebook. Final payment? No one's sure."
+        ,"solution": "Every payment logged with method, date, and proof. Outstanding balance updates live for every booking."
+        }
+      ]
+    },
+    "features": {
+      "tag": "Everything you need",
+      "title": "Built for the way venues actually work",
+      "subtitle": "From the first WhatsApp message to the final payment receipt — one platform, one source of truth.",
+      "items": [
+        {
+          "title": "Smart Booking Wizard",
+          "desc": "4-step flow: pick the client, lock the date and shift, choose the package, confirm. Conflicts blocked at step 2."
+        },
+        {
+          "title": "Visual Calendar",
+          "desc": "Month, week, and day views. Color-coded by status. See every hall's pipeline at a glance."
+        },
+        {
+          "title": "Inquiry Pipeline",
+          "desc": "Track every lead from new → contacted → toured → quoted → converted. Auto-close after 3 silent attempts."
+        },
+        {
+          "title": "Egyptian Payments",
+          "desc": "Log InstaPay, Fawry, Vodafone Cash, bank transfers, or cash. Track deposit → 2nd payment → final balance."
+        },
+        {
+          "title": "Realtime Notifications",
+          "desc": "When a hold is expiring, a payment is overdue, or a reminder is due — your team knows the second it happens."
+        },
+        {
+          "title": "Multi-hall + Packages",
+          "desc": "Configure unlimited halls with capacity and amenities. Build flat-rate or per-person packages."
+        },
+        {
+          "title": "Bilingual & RTL",
+          "desc": "Arabic-first interface with full RTL layout. Switch to English in one click. No exceptions, no half measures."
+        },
+        {
+          "title": "Roles & Permissions",
+          "desc": "Admin, sales, accountant — each role sees only what they need. Multi-tenant ready from day one."
+        }
+      ]
+    },
+    "how": {
+      "tag": "How it works",
+      "title": "Three steps from lead to wedding",
+      "subtitle": "The same path every successful booking takes — automated end to end.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "Capture the inquiry",
+          "desc": "Log the lead in seconds — phone, desired date, source. The follow-up timer starts immediately."
+        },
+        {
+          "n": "02",
+          "title": "Confirm the booking",
+          "desc": "When the client says yes, the wizard locks the hall, builds the package, and applies the deposit."
+        },
+        {
+          "n": "03",
+          "title": "Track payments to closing",
+          "desc": "Log each payment as it arrives. Outstanding balance recalculates live. Receipts attached to the booking."
+        }
+      ]
+    },
+    "showcase": {
+      "tag": "See it in action",
+      "title": "Designed for the team that runs the venue",
+      "subtitle": "A clean, fast interface that your sales team will actually use — and your accountant will actually trust.",
+      "calendarTitle": "Live Calendar",
+      "calendarDesc": "Every hall, every shift, every status — in one view.",
+      "wizardTitle": "Booking Wizard",
+      "wizardDesc": "Four guided steps. Zero double bookings.",
+      "step1": "Client",
+      "step2": "Date",
+      "step3": "Package",
+      "step4": "Confirm"
+    },
+    "bilingual": {
+      "tag": "Truly bilingual",
+      "title": "Arabic and English — equally polished",
+      "subtitle": "Not a translation layer. Both languages are native, RTL is fully supported, and your team can switch instantly.",
+      "arLabel": "Arabic interface",
+      "enLabel": "English interface"
+    },
+    "pricing": {
+      "tag": "Simple pricing",
+      "title": "Pay for what your venue needs",
+      "subtitle": "Start free for 14 days. No credit card. Cancel anytime.",
+      "monthly": "/ month",
+      "popular": "Most popular",
+      "cta": "Start free trial",
+      "ctaContact": "Contact sales",
+      "tiers": [
+        {
+          "name": "Starter",
+          "price": "1,499",
+          "desc": "For a single hall just getting organized.",
+          "features": [
+            "1 hall",
+            "Up to 3 users",
+            "Booking + inquiry tracking",
+            "Calendar view",
+            "Email support"
+          ]
+        },
+        {
+          "name": "Pro",
+          "price": "3,499",
+          "desc": "For busy multi-hall venues. Most popular.",
+          "features": [
+            "Up to 5 halls",
+            "Unlimited users",
+            "All Egyptian payment methods",
+            "Realtime notifications",
+            "Roles & permissions",
+            "Priority support"
+          ]
+        },
+        {
+          "name": "Multi-venue",
+          "price": "Custom",
+          "desc": "For venue groups and franchises.",
+          "features": [
+            "Unlimited halls & venues",
+            "Custom integrations",
+            "Dedicated success manager",
+            "Onboarding & training",
+            "SLA + phone support"
+          ]
+        }
+      ]
+    },
+    "faq": {
+      "tag": "FAQ",
+      "title": "Common questions",
+      "subtitle": "If we missed something, send us a message.",
+      "items": [
+        {
+          "q": "Do I need to be online all the time?",
+          "a": "Yes — Afrah ERP is a cloud platform, so you and your team always see the same data. Any modern browser works on phone, tablet, or laptop."
+        },
+        {
+          "q": "Can I import my existing bookings and clients?",
+          "a": "Absolutely. During onboarding we help you import bookings, clients, and payment history from Excel or your old system."
+        },
+        {
+          "q": "Will my whole team be able to use it?",
+          "a": "Yes. You can add unlimited users on the Pro plan, each with their own role: admin, sales, or accountant. Everyone sees what they need, nothing more."
+        },
+        {
+          "q": "What payment methods do you support?",
+          "a": "All the ones Egyptian clients actually use: InstaPay, Fawry, Vodafone Cash, bank transfer, cash, and credit card — with proof of payment attached."
+        },
+        {
+          "q": "Is the system in Arabic?",
+          "a": "Yes — Arabic is the default. The full UI is RTL, and you can switch to English with one click for foreign clients or staff."
+        },
+        {
+          "q": "How long does setup take?",
+          "a": "Most venues are running their first booking in under 10 minutes. Full onboarding (halls, packages, team) takes about an hour."
+        }
+      ]
+    },
+    "finalCta": {
+      "title": "Ready to stop losing bookings?",
+      "subtitle": "Join the venues that already manage every wedding from one calm, beautiful dashboard.",
+      "primary": "Start free trial",
+      "secondary": "Talk to sales"
+    },
+    "footer": {
+      "tagline": "The modern way to manage Egyptian wedding venues.",
+      "product": "Product",
+      "company": "Company",
+      "legal": "Legal",
+      "contact": "Contact",
+      "links": {
+        "features": "Features",
+        "pricing": "Pricing",
+        "demo": "Book a demo",
+        "changelog": "Changelog",
+        "about": "About",
+        "blog": "Blog",
+        "careers": "Careers",
+        "privacy": "Privacy",
+        "terms": "Terms",
+        "security": "Security",
+        "whatsapp": "WhatsApp us",
+        "email": "Email us"
+      },
+      "rights": "All rights reserved.",
+      "madeIn": "Made in Egypt"
+    }
   }
 }

@@ -34,7 +34,20 @@
     "upcomingEvents": "الفعاليات القادمة",
     "viewAll": "عرض الكل",
     "noEvents": "لا توجد فعاليات اليوم",
-    "allHalls": "جميع القاعات"
+    "allHalls": "جميع القاعات",
+    "eventsThisWeekHint": "الفعاليات خلال الأيام السبعة القادمة",
+    "outstandingBalanceHint": "عبر الحجوزات النشطة",
+    "overdueAttentionHint": "تحتاج متابعة فورية",
+    "overdueCaughtUpHint": "لا يوجد تأخير",
+    "recentBookingsDesc": "آخر نشاط للحجوزات",
+    "noRecentBookings": "لا توجد حجوزات بعد",
+    "overdueFollowupsCard": "متابعات متأخرة",
+    "allCaughtUp": "لا يوجد تأخير!",
+    "followUpWasDueOn": "موعد المتابعة {date}",
+    "badgeNew": "جديد",
+    "viewHolds": "عرض الحجوزات المؤقتة",
+    "due": "مستحق",
+    "expiringHoldBanner": "{count, plural, one {حجز مؤقت ينتهي قريباً} other {# حجوزات مؤقتة تنتهي قريباً}}"
   },
   "bookings": {
     "title": "الحجوزات",
@@ -66,6 +79,69 @@
     "editHistory": "سجل التعديلات",
     "paymentHistory": "سجل الدفعات",
     "noBookings": "لا توجد حجوزات",
+    "loadingList": "جاري التحميل…",
+    "bookingCountPlural": "{count, plural, one {حجز واحد} other {# حجز}}",
+    "dateSort": "التاريخ {dir}",
+    "guestCountTable": "{count, plural, one {ضيف واحد} other {# ضيف}}",
+    "expiresOn": "ينتهي {date}",
+    "paidInFull": "مسدّد ✓",
+    "filteredByClientHint": "مفعّل فلتر العميل.",
+    "clearClientFilter": "إزالة الفلتر",
+    "cancelSuccessToast": "تم إلغاء الحجز",
+    "cancelDescriptionIntro": "يُحرّر الموعد للحجز {name}. يبقى الرصيد المستحق مسجَّلاً إن وُجد.",
+    "backToBookings": "الحجوزات",
+    "notFoundTitle": "الحجز غير موجود",
+    "eventDetailsSection": "تفاصيل الفعالية",
+    "keepBooking": "الإبقاء على الحجز",
+    "cancelBookingAction": "إلغاء الحجز",
+    "cancelOutstandingWarning": "رصيد مستحق:",
+    "editsLocked": "التعديل مقفول لهذا الحجز.",
+    "clientCardTitle": "العميل",
+    "sourceLabel": "المصدر",
+    "financialsSection": "الماليات",
+    "totalLabel": "الإجمالي",
+    "paidLabel": "المدفوع",
+    "outstandingLabel": "المستحق",
+    "viewClients": "العملاء",
+    "guestsShort": "الضيوف",
+    "packageFallback": "مخصص",
+    "assignedLabel": "المسؤول",
+    "shiftTimeLabel": "الفترة / الوقت",
+    "editHistoryLoading": "جاري تحميل سجل التعديلات…",
+    "editHistoryEmpty": "لا توجد تعديلات مسجلة",
+    "editHistoryBefore": "قبل",
+    "editHistoryAfter": "بعد",
+    "editHistoryFinancial": "تعديل مالي:",
+    "editHistoryEditSuffix": "تعديل",
+    "editNoChanges": "لا توجد تغييرات للحفظ",
+    "editSaved": "تم تحديث الحجز",
+    "editLoadingVenue": "جاري تحميل القاعات والباقات…",
+    "editPackageChangedHint": "تم تغيير الباقة — مطلوب مراجعة مالية",
+    "editFinancialTitle": "مراجعة مالية",
+    "editFinancialPrevPackage": "الباقة السابقة",
+    "editFinancialNewPackage": "الباقة الجديدة",
+    "editFinancialPriceDiff": "فرق السعر",
+    "editFinancialResolutionLabel": "القرار",
+    "editResolutionClientPays": "العميل يدفع الفرق",
+    "editResolutionCredit": "تطبيق كرصيد",
+    "editResolutionRefund": "إصدار استرداد",
+    "editResolutionNoChange": "لا تغيير مالي",
+    "editAgentNotesRequired": "ملاحظات الوكيل (مطلوبة)",
+    "editAgentNotesPlaceholder": "اشرح سبب تغيير الباقة لسجل المراجعة…",
+    "editFinancialBack": "رجوع",
+    "editFinancialConfirm": "تأكيد التعديل",
+    "editReviewFinancial": "مراجعة التغيير المالي ←",
+    "saveEdits": "حفظ التغييرات",
+    "cancellationReasons": {
+      "customer_not_reached": "لم يتم الوصول للعميل",
+      "chose_another_venue": "اختار قاعة أخرى",
+      "budget_too_high": "السعر مرتفع",
+      "date_not_available": "التاريخ غير متاح",
+      "no_longer_getting_married": "تم إلغاء الحفل",
+      "unresponsive_no_contact": "لا يستجيب",
+      "hold_expired": "انتهى الحجز المؤقت",
+      "other": "أخرى"
+    },
     "wizard": {
       "title": "حجز جديد",
       "step1": "العميل",
@@ -93,7 +169,24 @@
       "next": "التالي",
       "confirm": "تأكيد الحجز",
       "slotUnavailable": "هذا الموعد غير متاح",
-      "checking": "جاري التحقق من التوفر..."
+      "checking": "جاري التحقق من التوفر...",
+      "slotAvailable": "الموعد متاح",
+      "checkAvailability": "التحقق من التوفر",
+      "guestCountLabel": "عدد الضيوف",
+      "hallLabel": "القاعة",
+      "bookingCreatedToast": "تم إنشاء الحجز",
+      "bookingCreatedToastDesc": "حجز {name} بتاريخ {date}",
+      "noEventTypeConfigured": "أضف نوع حدث نشط وفق الفترات من الإعدادات أولاً.",
+      "configureBackend": "لم يمكن التحقق من التوفر (الخدمة غير جاهزة). يمكن المتابعة إذا كنت واثقاً من الموعد.",
+      "bookingCreateFailedTitle": "تعذر إنشاء الحجز",
+      "noPackagesConfigured": "لا توجد باقات بعد — أدخل إجمالي يدوي.",
+      "noHallsConfigured": "أضف قاعة نشطة من الإعدادات.",
+      "noClientsYet": "لا يوجد عميل مطابق للبحث.",
+      "commonCancel": "إلغاء",
+      "titleFromInquiry": "تحويل الاستفسار إلى حجز",
+      "confirmFromInquiry": "تحويل وإنشاء الحجز",
+      "bookingConvertedToast": "تم إنشاء الحجز من الاستفسار",
+      "bookingConvertedToastDesc": "حجز {name} في {date}. تم تعليم الاستفسار كمحوّل."
     }
   },
   "inquiries": {
@@ -114,14 +207,38 @@
     "convert": "تحويل لحجز",
     "cancel": "إلغاء",
     "noInquiries": "لا توجد استفسارات",
+    "loadingList": "جاري التحميل…",
+    "inquiryCountPlural": "{count, plural, one {استفسار واحد} other {# استفسارات}}",
+    "guestEstimate": "~{count} ضيف",
+    "notFound": "الاستفسار غير موجود",
+    "backToList": "العودة إلى الاستفسارات",
+    "createdToast": "تم إنشاء الاستفسار",
+    "newDialog": {
+      "existingTab": "عميل موجود",
+      "newTab": "عميل جديد",
+      "selectClientPlaceholder": "اختر عميلاً…",
+      "desiredDateLabel": "التاريخ المطلوب",
+      "guestCountLabel": "عدد الضيوف",
+      "guestCountPlaceholder": "~200",
+      "packageInterestLabel": "الباقة المهتم بها",
+      "packageInterestPlaceholder": "مثال: الباقة الذهبية",
+      "notesLabel": "ملاحظات",
+      "submit": "إنشاء الاستفسار",
+      "nameLabel": "اسم العميل",
+      "phoneLabel": "الهاتف",
+      "noVenue": "لا يوجد مكان مرتبط بعد. أكمل الإعداد."
+    },
     "pending": {
       "title": "تعليق الاستفسار",
       "reason": "سبب التعليق",
       "callAgain": "إعادة الاتصال",
       "pendingDeposit": "في انتظار العربون",
       "notes": "ملاحظات",
+      "notesPlaceholder": "صف الوضع وما وعدت به العميل…",
       "scheduleCall": "تحديد موعد الاتصال",
-      "submit": "تعليق"
+      "submit": "تعليق",
+      "submitSuccess": "تم وضع الاستفسار في حالة تعليق",
+      "invalidSchedule": "اختر تاريخاً ووقتاً صالحاً لموعد المتابعة."
     },
     "outcome": {
       "title": "تسجيل نتيجة المكالمة",
@@ -131,10 +248,26 @@
       "reschedule": "إعادة جدولة",
       "cancel": "إلغاء الاستفسار",
       "notes": "ملاحظات النتيجة",
+      "notesPlaceholder": "ملاحظات المكالمة…",
       "nextCallDate": "موعد الاتصال التالي",
+      "nextCallOptional": "اختياري؛ افتراضياً الغد إذا لم تختر تاريخاً",
       "submit": "حفظ النتيجة",
       "attempt": "المحاولة {count} من 3",
-      "autoCloseWarning": "هذه هي المحاولة الأخيرة. سيتم إغلاق الاستفسار تلقائياً إذا لم يرد."
+      "attemptBadge": "{count}/3 لم يرد",
+      "autoCloseWarning": "هذه هي المحاولة الأخيرة. سيتم إغلاق الاستفسار تلقائياً إذا لم يرد.",
+      "answeredSuccess": "تم حفظ نتيجة المكالمة",
+      "needPendingReminderTitle": "لا يوجد تذكير مفتوح",
+      "needPendingReminderBody": "استخدم «تعليق» أولاً لإنشاء تذكير متابعة مجدول.",
+      "noResponseLogged": "تم تسجيل عدم الرد",
+      "autoClosedTitle": "تم إغلاق الاستفسار",
+      "autoClosedBody": "بعد ثلاث محاولات بدون رد تم إلغاء الاستفسار تلقائياً.",
+      "convertNavigateTitle": "الحجوزات مفلترة حسب العميل",
+      "convertNavigateBody": "أنشئ حجزاً جديداً من صفحة الحجوزات (المعالج) لهذا العميل.",
+      "convertOpenWizardTitle": "فتح معالج الحجز",
+      "convertOpenWizardBody": "أكمل الخطوات لإنشاء الحجز وتحويل الاستفسار.",
+      "nextCallRequiredTitle": "حدد الموعد الجديد",
+      "nextCallRequiredBody": "اختر تاريخاً ووقتاً لمتابعة المكالمة بعد إعادة الجدولة.",
+      "rescheduleSuccess": "تمت إعادة جدولة المتابعة"
     },
     "statuses": {
       "new": "جديد",
@@ -153,6 +286,24 @@
       "no_longer_getting_married": "تم إلغاء الحفل",
       "unresponsive_no_contact": "لا يستجيب",
       "other": "أخرى"
+    },
+    "reminderTimeline": {
+      "loading": "جاري التحميل…",
+      "empty": "لا توجد تذكيرات بعد",
+      "attemptsBanner": "{count}/3 محاولات بدون رد.",
+      "attemptsBannerFinalHint": "محاولة «لم يرد» التالية ستغلق الاستفسار تلقائياً.",
+      "typeScheduledCall": "مكالمة مجدولة",
+      "typeDepositFollowUp": "متابعة العربون",
+      "outcomeConverted": "تم التحويل إلى حجز",
+      "outcomeRescheduled": "تمت إعادة الجدولة",
+      "outcomeCancelled": "ملغي",
+      "outcomeNoResponse": "لم يرد",
+      "status": {
+        "pending": "في الانتظار",
+        "fired": "تم التنفيذ",
+        "dismissed": "مرفوض",
+        "completed": "مكتمل"
+      }
     }
   },
   "clients": {
@@ -168,7 +319,21 @@
     "actions": "الإجراءات",
     "viewBookings": "عرض الحجوزات",
     "edit": "تعديل",
-    "noClients": "لا يوجد عملاء"
+    "noClients": "لا يوجد عملاء",
+    "noVenue": "لا يوجد مكان مرتبط بحسابك بعد. أكمل الإعداد من الإعدادات.",
+    "noVenueHint": "اربط مكاناً قبل إضافة العملاء.",
+    "matchCountLoading": "جاري التحميل…",
+    "matchCount": "{count, plural, one {عميل واحد} other {# عملاء}}",
+    "bookingCountBadge": "{count, plural, one {حجز واحد} other {# حجوزات}}",
+    "lastBookingWithDate": "آخر حجز: {date}",
+    "fullNameLabel": "الاسم الكامل",
+    "fullNamePlaceholder": "اسم العميل",
+    "primaryPhoneLabel": "الهاتف الأساسي",
+    "primaryPhonePlaceholder": "01xxxxxxxxx",
+    "secondaryPhoneLabel": "الهاتف الثانوي",
+    "notesLabel": "ملاحظات",
+    "addClient": "إضافة عميل",
+    "clientCreatedToast": "تم إضافة العميل"
   },
   "calendar": {
     "title": "التقويم",
@@ -182,7 +347,8 @@
     "confirmed": "مؤكد",
     "onHold": "محجوز مؤقت",
     "inquiry": "استفسار",
-    "completed": "مكتمل"
+    "completed": "مكتمل",
+    "loadingEvents": "جاري تحميل المواعيد…"
   },
   "settings": {
     "title": "الإعدادات",
@@ -212,7 +378,88 @@
     "editCutoff": "حد التعديل (أيام قبل الفعالية)",
     "language": "اللغة",
     "arabic": "العربية",
-    "english": "الإنجليزية"
+    "english": "الإنجليزية",
+    "subtitle": "اضبط بيانات قاعتك والقاعات والباقات",
+    "hallsSubtitle": "إدارة قاعات وأماكن العقد",
+    "packagesSubtitle": "تحديد باقات الأسعار للحجوزات",
+    "noHalls": "لا توجد قاعات بعد — أضف قاعة لتبدأ استقبال الحجوزات",
+    "noPackages": "لا توجد باقات بعد — أضف باقة لاستخدامها في معالج الحجز",
+    "minCapacity": "الحد الأدنى للسعة",
+    "amenityPlaceholder": "تكييف، موقف سيارات، مسرح…",
+    "add": "إضافة",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "editHall": "تعديل القاعة",
+    "editPackage": "تعديل الباقة",
+    "hallCreated": "تم إضافة القاعة",
+    "hallUpdated": "تم تحديث القاعة",
+    "hallDeleted": "تم حذف القاعة",
+    "packageCreated": "تم إضافة الباقة",
+    "packageUpdated": "تم تحديث الباقة",
+    "packageDeleted": "تم حذف الباقة",
+    "hallFormError": "يرجى إدخال اسم وسعة قصوى صحيحة",
+    "packageFormError": "يرجى إدخال اسم وسعر أساسي صحيح",
+    "confirmDeleteHall": "حذف هذه القاعة؟",
+    "confirmDeleteHallDesc": "جميع الحجوزات المرتبطة ستحتفظ بالمرجع. يمكنك تعطيل القاعة بدلاً من حذفها لإخفائها فقط.",
+    "confirmDeletePackage": "حذف هذه الباقة؟",
+    "confirmDeletePackageDesc": "الحجوزات الحالية المرتبطة ستحتفظ بالمرجع. يمكنك تعطيل الباقة بدلاً من حذفها.",
+    "minGuests": "الحد الأدنى للضيوف",
+    "inclusions": "ما تشمله الباقة",
+    "inclusionsPlaceholder": "إيجار القاعة، الضيافة، الديكور، DJ…",
+    "perPersonShort": "للشخص",
+    "flatShort": "ثابت",
+    "noEventTypes": "لا توجد أنواع فعاليات بعد — أضف فرح، عيد ميلاد، خطوبة…",
+    "eventTypeName": "الاسم",
+    "eventTypePlaceholder": "فرح، عيد ميلاد…",
+    "timeModel": "نظام الوقت",
+    "shift_based": "حسب الفترة",
+    "slot_based": "حسب الموعد",
+    "eventTypeCreated": "تم إضافة نوع الفعالية",
+    "eventTypeDeleted": "تم حذف نوع الفعالية",
+    "confirmDeleteEventType": "حذف نوع الفعالية؟",
+    "loadVenueError": "تعذر تحميل بيانات القاعة",
+    "venueProfile": "بيانات القاعة",
+    "venueProfileDesc": "البيانات والمعلومات الخاصة بقاعتك",
+    "primaryPhone": "الهاتف الرئيسي",
+    "secondaryPhone": "هاتف بديل",
+    "instagramUrl": "رابط انستجرام",
+    "facebookUrl": "رابط فيسبوك",
+    "editPolicy": "سياسة التعديل",
+    "editPolicyDesc": "تحكم في وقت إمكانية تعديل الحجوزات",
+    "editCutoffHelp": "لا يمكن تعديل الحجوزات قبل موعد الفعالية بأقل من هذا العدد من الأيام",
+    "managerOverride": "صلاحية المدير",
+    "managerOverrideDesc": "السماح للمديرين بتجاوز حد التعديل",
+    "billing": "الفواتير",
+    "days": "يوم"
+  },
+  "users": {
+    "title": "إدارة المستخدمين",
+    "subtitle": "حسابك والصلاحيات وفريق القاعة من venue_users.",
+    "accessDeniedTitle": "غير مسموح",
+    "accessDeniedDesc": "ليس لديك صلاحية عرض المستخدمين.",
+    "youCardTitle": "أنت",
+    "youCardDesc": "تفاصيل حسابك الحالي.",
+    "permissionsCardTitle": "صلاحياتك",
+    "yourPermissionsDesc": "تحدد الشاشات والإجراءات المتاحة لك.",
+    "noPermissionsAssigned": "لا توجد صلاحيات مسندة.",
+    "teamTitle": "أعضاء الفريق",
+    "teamDesc": "كل من هو مرتبط بقاعتك عبر venue_users.",
+    "userId": "معرّف المستخدم",
+    "role": "الدور",
+    "youBadge": "أنت",
+    "addedAt": "تاريخ الإضافة",
+    "loadingTeam": "جاري تحميل الفريق…",
+    "emptyTeam": "لا توجد صفوف بعد.",
+    "noEmailNote": "الأسماء والبريد في المصادقة؛ هنا يظهر معرّف المستخدم في Supabase والدور.",
+    "inviteHintTitle": "كيف تدعو زميلاً",
+    "inviteHintStep1": "أنشئ الحساب من لوحة Supabase → المصادقة (دعوة أو رابط سحري).",
+    "inviteHintStep2": "بعد القبول، اربطهم بـ",
+    "inviteHintFooter": "شغِّل ذلك في SQL (أو أتمتة) بعد الحصول على الـ UUID. التطبيقات من المتصفح لا تدعو بأمان دون Backend أو Edge Function بمفتاح الخدمة.",
+    "clipboardCopiedTitle": "تم النسخ",
+    "clipboardFailedTitle": "تعذّر النسخ",
+    "copyUserIdAria": "نسخ معرّف المستخدم",
+    "inviteButton": "دعوة مستخدم",
+    "closeInvite": "إغلاق"
   },
   "payments": {
     "title": "سجل الدفعات",
@@ -234,12 +481,19 @@
     "secondPayment": "دفعة ثانية",
     "final": "الدفعة الأخيرة",
     "submit": "تسجيل الدفعة",
-    "noPayments": "لا توجد دفعات"
+    "noPayments": "لا توجد دفعات",
+    "progressLabel": "تقدم الدفع",
+    "percentPaid": "تم دفع {pct}٪",
+    "outstandingSuffix": "مستحق",
+    "loading": "جاري التحميل…",
+    "loggedSuccess": "تم تسجيل الدفعة",
+    "invalidAmount": "أدخل مبلغاً صالحاً"
   },
   "notifications": {
     "title": "الإشعارات",
     "markAllRead": "تعليم الكل كمقروء",
     "noNotifications": "لا توجد إشعارات",
+    "loading": "جاري التحميل…",
     "reminderDue": "تذكير مستحق",
     "holdExpiring": "حجز مؤقت ينتهي قريباً",
     "paymentOverdue": "دفعة متأخرة"
@@ -286,5 +540,258 @@
     "unauthorized": "غير مصرح لك بعرض هذه الصفحة",
     "slotTaken": "هذا الموعد محجوز بالفعل",
     "editNotAllowed": "لا يمكن التعديل خلال {days} يوم من تاريخ الفعالية"
+  },
+  "landing": {
+    "nav": {
+      "features": "المميزات",
+      "howItWorks": "كيف يعمل",
+      "pricing": "الأسعار",
+      "faq": "الأسئلة الشائعة",
+      "signIn": "تسجيل الدخول",
+      "getStarted": "ابدأ الآن"
+    },
+    "hero": {
+      "badge": "مصمم خصيصاً لقاعات الأفراح في مصر",
+      "title": "أدِر قاعتك بدون ما تفقد أي حجز",
+      "subtitle": "نظام إدارة متكامل يحوّل الاستفسارات إلى حجوزات مؤكدة — بتذكيرات ذكية، تقويم بدون تعارضات، ووسائل الدفع المصرية كلها.",
+      "cta": "ابدأ تجربتك المجانية",
+      "secondary": "تسجيل الدخول لقاعتك",
+      "trustNote": "بدون بطاقة ائتمان · إعداد في أقل من 10 دقائق",
+      "preview": {
+        "todayEvents": "فعاليات اليوم",
+        "outstanding": "الرصيد المستحق",
+        "newInquiries": "استفسارات جديدة",
+        "occupancy": "هذا الأسبوع",
+        "weddingOf": "فرح",
+        "elGarden": "قاعة الجاردن",
+        "evening": "مسائي",
+        "confirmed": "مؤكد",
+        "onHold": "محجوز مؤقت"
+      }
+    },
+    "trust": {
+      "title": "مصنوع للسوق المصري",
+      "subtitle": "بيتكلم لغتك. بيقبل وسائل الدفع اللي بتستخدمها. بيفهم طريقة شغلك.",
+      "labels": {
+        "instapay": "إنستاباي",
+        "fawry": "فوري",
+        "vodafoneCash": "فودافون كاش",
+        "bankTransfer": "تحويل بنكي",
+        "cash": "نقدي",
+        "arabic": "عربي + RTL",
+        "egp": "الجنيه المصري"
+      }
+    },
+    "problem": {
+      "tag": "ليه نظام أفراح",
+      "title": "بطّل تخسر فلوس بسبب الفوضى",
+      "subtitle": "تلات مشاكل بتسرّب الأرباح من كل قاعة. نظام أفراح بيحلّهم تلقائياً.",
+      "items": [
+        {
+          "title": "العملاء بيضيعوا في الواتساب",
+          "problem": "فريقك بينسى يتابع. العميل بيختار قاعة تانية. وانت ما هتعرفش أبداً.",
+          "solution": "تذكيرات تلقائية بعد كل مكالمة. 3 محاولات، وبعدها الاستفسار بيتقفل تلقائياً بسبب — ولا استفسار بيتنسى."
+        },
+        {
+          "title": "حجز مزدوج على نفس القاعة",
+          "problem": "موظفين بيأكدوا نفس القاعة في نفس اليوم. الخناقة بتبدأ على الباب.",
+          "solution": "مصدر واحد للحقيقة. كشف فوري للتعارض في القاعات والفترات والحجوزات المؤقتة."
+        },
+        {
+          "title": "الدفعات بتتوه في الإكسل",
+          "problem": "إيصالات إنستاباي في الواتساب. الكاش في الكشكول. الدفعة الأخيرة؟ محدش متأكد.",
+          "solution": "كل دفعة مسجلة بالطريقة والتاريخ والإثبات. الرصيد المستحق بيتحدث لحظياً لكل حجز."
+        }
+      ]
+    },
+    "features": {
+      "tag": "كل اللي محتاجه",
+      "title": "متبني للطريقة اللي القاعات بتشتغل بيها فعلاً",
+      "subtitle": "من أول رسالة واتساب لحد آخر إيصال دفع — منصة واحدة، مصدر واحد للحقيقة.",
+      "items": [
+        {
+          "title": "معالج حجز ذكي",
+          "desc": "4 خطوات: اختار العميل، ثبّت التاريخ والفترة، حدد الباقة، أكّد. التعارضات بتتمنع من الخطوة التانية."
+        },
+        {
+          "title": "تقويم مرئي",
+          "desc": "عرض شهري وأسبوعي ويومي. ملوّن حسب الحالة. شوف مواعيد كل قاعة بنظرة واحدة."
+        },
+        {
+          "title": "مسار الاستفسارات",
+          "desc": "تابع كل عميل من جديد ← تم التواصل ← زار القاعة ← تم العرض ← تحول لحجز. إغلاق تلقائي بعد 3 محاولات بدون رد."
+        },
+        {
+          "title": "وسائل الدفع المصرية",
+          "desc": "سجّل إنستاباي، فوري، فودافون كاش، تحويل بنكي، أو نقدي. تابع العربون ← الدفعة التانية ← الرصيد الأخير."
+        },
+        {
+          "title": "إشعارات لحظية",
+          "desc": "لما حجز مؤقت قرّب ينتهي، أو دفعة متأخرة، أو تذكير مستحق — فريقك بيعرف في نفس اللحظة."
+        },
+        {
+          "title": "قاعات وباقات متعددة",
+          "desc": "اضبط عدد قاعات غير محدود مع السعة والمرافق. كوّن باقات بسعر ثابت أو سعر للشخص."
+        },
+        {
+          "title": "ثنائي اللغة و RTL",
+          "desc": "واجهة عربية أصلية بتخطيط RTL كامل. التبديل للإنجليزية بضغطة واحدة. بدون استثناءات أو حلول نصّ نص."
+        },
+        {
+          "title": "أدوار وصلاحيات",
+          "desc": "أدمن، مبيعات، محاسب — كل دور بيشوف اللي يهمه بس. جاهز للاستضافة المتعددة من اليوم الأول."
+        }
+      ]
+    },
+    "how": {
+      "tag": "كيف يعمل",
+      "title": "تلات خطوات من الاستفسار للفرح",
+      "subtitle": "نفس المسار اللي بيمشي فيه كل حجز ناجح — أوتوماتيكي من الأول للآخر.",
+      "steps": [
+        {
+          "n": "01",
+          "title": "سجّل الاستفسار",
+          "desc": "سجّل العميل في ثواني — التليفون، التاريخ المطلوب، المصدر. عدّاد المتابعة بيبدأ على طول."
+        },
+        {
+          "n": "02",
+          "title": "أكّد الحجز",
+          "desc": "لما العميل يقول آه، المعالج بيحجز القاعة، يبني الباقة، ويسجّل العربون."
+        },
+        {
+          "n": "03",
+          "title": "تابع الدفعات للنهاية",
+          "desc": "سجّل كل دفعة لما توصل. الرصيد المستحق بيتحدث لحظياً. الإيصالات متعلّقة بالحجز."
+        }
+      ]
+    },
+    "showcase": {
+      "tag": "شوفه بنفسك",
+      "title": "مصمّم للفريق اللي بيدير القاعة",
+      "subtitle": "واجهة نظيفة وسريعة فريق المبيعات هيستخدمها فعلاً — والمحاسب هيثق فيها فعلاً.",
+      "calendarTitle": "تقويم لحظي",
+      "calendarDesc": "كل قاعة، كل فترة، كل حالة — في عرض واحد.",
+      "wizardTitle": "معالج الحجز",
+      "wizardDesc": "أربع خطوات موجّهة. صفر حجوزات مزدوجة.",
+      "step1": "العميل",
+      "step2": "التاريخ",
+      "step3": "الباقة",
+      "step4": "التأكيد"
+    },
+    "bilingual": {
+      "tag": "ثنائي اللغة فعلاً",
+      "title": "عربي وإنجليزي — نفس المستوى من الإتقان",
+      "subtitle": "مش مجرد ترجمة. اللغتين أصليتين، RTL مدعوم بالكامل، وفريقك يقدر يبدّل بينهم في ثانية.",
+      "arLabel": "الواجهة العربية",
+      "enLabel": "الواجهة الإنجليزية"
+    },
+    "pricing": {
+      "tag": "أسعار بسيطة",
+      "title": "ادفع اللي قاعتك محتاجاه بس",
+      "subtitle": "ابدأ مجاناً 14 يوم. بدون بطاقة ائتمان. ألغي في أي وقت.",
+      "monthly": "/ شهرياً",
+      "popular": "الأكثر طلباً",
+      "cta": "ابدأ مجاناً",
+      "ctaContact": "تواصل مع المبيعات",
+      "tiers": [
+        {
+          "name": "Starter",
+          "price": "1,499",
+          "desc": "لقاعة واحدة لسه بتنظّم نفسها.",
+          "features": [
+            "قاعة واحدة",
+            "حتى 3 مستخدمين",
+            "إدارة الحجوزات والاستفسارات",
+            "عرض التقويم",
+            "دعم بالبريد الإلكتروني"
+          ]
+        },
+        {
+          "name": "Pro",
+          "price": "3,499",
+          "desc": "للقاعات اللي عندها أكتر من قاعة. الأكثر طلباً.",
+          "features": [
+            "حتى 5 قاعات",
+            "مستخدمين بدون حد",
+            "كل وسائل الدفع المصرية",
+            "إشعارات لحظية",
+            "أدوار وصلاحيات",
+            "دعم ذو أولوية"
+          ]
+        },
+        {
+          "name": "Multi-venue",
+          "price": "حسب الطلب",
+          "desc": "لمجموعات القاعات والامتيازات.",
+          "features": [
+            "قاعات وفروع بدون حد",
+            "تكاملات مخصصة",
+            "مدير نجاح مخصص",
+            "إعداد وتدريب",
+            "اتفاقية مستوى خدمة + دعم تليفوني"
+          ]
+        }
+      ]
+    },
+    "faq": {
+      "tag": "الأسئلة الشائعة",
+      "title": "أسئلة شائعة",
+      "subtitle": "لو مش لاقي إجابة، ابعتلنا.",
+      "items": [
+        {
+          "q": "هل لازم أكون أونلاين طول الوقت؟",
+          "a": "آه — نظام أفراح منصة سحابية، علشان انت وفريقك دايماً تشوفوا نفس البيانات. أي متصفح حديث على التليفون أو التابلت أو اللاب بيشتغل."
+        },
+        {
+          "q": "أقدر أنقل حجوزاتي وعملائي القدام؟",
+          "a": "طبعاً. خلال الإعداد بنساعدك تنقل الحجوزات والعملاء وسجل الدفعات من الإكسل أو من نظامك القديم."
+        },
+        {
+          "q": "كل فريقي يقدر يستخدمه؟",
+          "a": "آه. تقدر تضيف مستخدمين بدون حد في باقة Pro، كل واحد بدوره الخاص: أدمن، مبيعات، أو محاسب. كل واحد بيشوف اللي يهمه بس."
+        },
+        {
+          "q": "إيه وسائل الدفع المدعومة؟",
+          "a": "كل اللي العملاء المصريين بيستخدموها فعلاً: إنستاباي، فوري، فودافون كاش، تحويل بنكي، نقدي، وبطاقة ائتمان — مع إثبات الدفع متعلّق."
+        },
+        {
+          "q": "النظام بالعربي؟",
+          "a": "آه — العربية هي الأساس. الواجهة كلها RTL، وتقدر تبدّل للإنجليزي بضغطة واحدة للعملاء أو الموظفين الأجانب."
+        },
+        {
+          "q": "الإعداد بياخد وقت قد إيه؟",
+          "a": "أغلب القاعات بتسجّل أول حجز في أقل من 10 دقايق. الإعداد الكامل (القاعات، الباقات، الفريق) بياخد حوالي ساعة."
+        }
+      ]
+    },
+    "finalCta": {
+      "title": "جاهز تبطل تخسر حجوزات؟",
+      "subtitle": "انضم للقاعات اللي بقت تدير كل فرح من لوحة تحكم واحدة هادية وجميلة.",
+      "primary": "ابدأ تجربتك المجانية",
+      "secondary": "كلّم المبيعات"
+    },
+    "footer": {
+      "tagline": "الطريقة العصرية لإدارة قاعات الأفراح في مصر.",
+      "product": "المنتج",
+      "company": "الشركة",
+      "legal": "القانوني",
+      "contact": "تواصل معنا",
+      "links": {
+        "features": "المميزات",
+        "pricing": "الأسعار",
+        "demo": "احجز عرض توضيحي",
+        "changelog": "آخر التحديثات",
+        "about": "من نحن",
+        "blog": "المدونة",
+        "careers": "الوظائف",
+        "privacy": "الخصوصية",
+        "terms": "الشروط",
+        "security": "الأمان",
+        "whatsapp": "كلّمنا واتساب",
+        "email": "ابعتلنا إيميل"
+      },
+      "rights": "جميع الحقوق محفوظة.",
+      "madeIn": "صُنع في مصر"
+    }
   }
 }

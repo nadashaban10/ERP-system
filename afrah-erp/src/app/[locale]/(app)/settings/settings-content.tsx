@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { useTranslations, useLocale } from "next-intl";
-import { Loader2, Plus, Trash2, Building2, LayoutGrid, Package, CalendarDays, Users } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import {
+  Building2,
+  CalendarDays,
+  LayoutGrid,
+  Loader2,
+  Package as PackageIcon,
+  Pencil,
+  Plus,
+  Trash2,
+  Users,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -14,48 +23,232 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import { MOCK_VENUE, MOCK_HALLS, MOCK_PACKAGES } from "@/lib/mock-data";
-import { formatCurrency } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "@/components/ui/toaster";
-import { useMyProfile } from "@/lib/auth/use-my-profile";
-import { hasPermission } from "@/lib/auth/my-profile";
 import { Can } from "@/components/auth/can";
+import { hasPermission } from "@/lib/auth/my-profile";
+import { useMyProfile } from "@/lib/auth/use-my-profile";
+import { formatCurrency } from "@/lib/utils";
+import { useUpdateVenue, useVenue, type VenueProfileUpdate } from "@/lib/queries/venue";
+import {
+  useDeleteHall,
+  useHalls,
+  useUpdateHall,
+  type HallWithEventTypes,
+} from "@/lib/queries/halls";
+import {
+  useDeletePackage,
+  usePackages,
+  useUpdatePackage,
+} from "@/lib/queries/packages";
+import { showMutationError } from "@/lib/queries/helpers";
+import { HallFormDialog } from "@/components/settings/hall-form-dialog";
+import { PackageFormDialog } from "@/components/settings/package-form-dialog";
+import { EventTypesManager } from "@/components/settings/event-types-manager";
+import type { CityEnum, Package, Venue, VenueType } from "@/lib/types/database";
+
+type VenueFormShape = Pick<
+  Venue,
+  | "name_ar"
+  | "name_en"
+  | "type"
+  | "city"
+  | "address"
+  | "phone_1"
+  | "phone_2"
+  | "instagram"
+  | "facebook"
+  | "edit_cutoff_days"
+  | "edit_cutoff_override"
+>;
+
+function emptyVenueForm(): VenueFormShape {
+  return {
+    name_ar: "",
+    name_en: "",
+    type: "hall",
+    city: "cairo",
+    address: "",
+    phone_1: "",
+    phone_2: null,
+    instagram: null,
+    facebook: null,
+    edit_cutoff_days: 30,
+    edit_cutoff_override: false,
+  };
+}
 
 export function SettingsContent() {
   const t = useTranslations("settings");
-  const locale = useLocale();
-  const [isSaving, setIsSaving] = useState(false);
+  const tCommon = useTranslations("common");
   const { data: profile } = useMyProfile();
 
   const canEditVenue = hasPermission(profile, "venues.edit");
   const canViewVenue = hasPermission(profile, "venues.view");
   const canManageBilling = hasPermission(profile, "billing.manage");
 
-  const [venue, setVenue] = useState({ ...MOCK_VENUE });
+  // ─── Data ───────────────────────────────────────────────────────────────────
+  const venueQuery = useVenue();
+  const hallsQuery = useHalls();
+  const packagesQuery = usePackages();
 
+  const updateVenue = useUpdateVenue();
+  const updateHall = useUpdateHall();
+  const deleteHall = useDeleteHall();
+  const updatePackage = useUpdatePackage();
+  const deletePackage = useDeletePackage();
+
+  // ─── Venue profile form (local copy of server value) ────────────────────────
+  const [venueForm, setVenueForm] = useState<VenueFormShape>(emptyVenueForm);
+
+  // Hydrate the form whenever the venue query settles. We only sync once per
+  // server payload to avoid clobbering in-flight edits the user is making.
+  useEffect(() => {
+    if (!venueQuery.data) return;
+    const v = venueQuery.data;
+    setVenueForm({
+      name_ar: v.name_ar,
+      name_en: v.name_en,
+      type: v.type,
+      city: v.city,
+      address: v.address,
+      phone_1: v.phone_1,
+      phone_2: v.phone_2,
+      instagram: v.instagram,
+      facebook: v.facebook,
+      edit_cutoff_days: v.edit_cutoff_days,
+      edit_cutoff_override: v.edit_cutoff_override,
+    });
+  }, [venueQuery.data]);
+
+  // ─── Dialog state ───────────────────────────────────────────────────────────
+  const [hallDialog, setHallDialog] = useState<{
+    open: boolean;
+    hall: HallWithEventTypes | null;
+  }>({ open: false, hall: null });
+  const [packageDialog, setPackageDialog] = useState<{
+    open: boolean;
+    pkg: Package | null;
+  }>({ open: false, pkg: null });
+  const [pendingHallDelete, setPendingHallDelete] =
+    useState<HallWithEventTypes | null>(null);
+  const [pendingPackageDelete, setPendingPackageDelete] =
+    useState<Package | null>(null);
+
+  // ─── Handlers ───────────────────────────────────────────────────────────────
   async function handleSaveVenue() {
-    setIsSaving(true);
-    await new Promise((r) => setTimeout(r, 800));
-    // TODO: supabase.from("venues").update(venue).eq("id", venue.id)
-    toast({ variant: "success", title: "Venue settings saved" });
-    setIsSaving(false);
+    if (!venueQuery.data) return;
+    const changes: VenueProfileUpdate = {
+      name_ar: venueForm.name_ar,
+      name_en: venueForm.name_en,
+      type: venueForm.type,
+      city: venueForm.city,
+      address: venueForm.address,
+      phone_1: venueForm.phone_1,
+      phone_2: venueForm.phone_2,
+      instagram: venueForm.instagram,
+      facebook: venueForm.facebook,
+      edit_cutoff_days: venueForm.edit_cutoff_days,
+      edit_cutoff_override: venueForm.edit_cutoff_override,
+    };
+    try {
+      await updateVenue.mutateAsync({ id: venueQuery.data.id, changes });
+      toast({ variant: "success", title: tCommon("save") });
+    } catch (error) {
+      showMutationError(error, "Save failed");
+    }
   }
+
+  async function handleToggleHallActive(hall: HallWithEventTypes, next: boolean) {
+    try {
+      await updateHall.mutateAsync({
+        id: hall.id,
+        changes: { is_active: next },
+      });
+    } catch (error) {
+      showMutationError(error, "Update failed");
+    }
+  }
+
+  async function handleConfirmDeleteHall() {
+    if (!pendingHallDelete) return;
+    try {
+      await deleteHall.mutateAsync(pendingHallDelete.id);
+      toast({ variant: "success", title: t("hallDeleted") });
+    } catch (error) {
+      showMutationError(error, "Delete failed");
+    } finally {
+      setPendingHallDelete(null);
+    }
+  }
+
+  async function handleTogglePackageActive(pkg: Package, next: boolean) {
+    try {
+      await updatePackage.mutateAsync({
+        id: pkg.id,
+        changes: { is_active: next },
+      });
+    } catch (error) {
+      showMutationError(error, "Update failed");
+    }
+  }
+
+  async function handleConfirmDeletePackage() {
+    if (!pendingPackageDelete) return;
+    try {
+      await deletePackage.mutateAsync(pendingPackageDelete.id);
+      toast({ variant: "success", title: t("packageDeleted") });
+    } catch (error) {
+      showMutationError(error, "Delete failed");
+    } finally {
+      setPendingPackageDelete(null);
+    }
+  }
+
+  // ─── Render ─────────────────────────────────────────────────────────────────
+  const venueLoading = venueQuery.isPending;
+  const venueError = venueQuery.isError;
+  const venueId = venueQuery.data?.id;
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">
-          Configure your venue profile, halls, and packages
-        </p>
+        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
-      <Tabs defaultValue={canViewVenue ? "venue" : canManageBilling ? "billing" : "general"}>
+      {venueError && (
+        <Card className="border-destructive/40 bg-red-50">
+          <CardContent className="p-4 text-sm text-destructive">
+            {t("loadVenueError")}: {venueQuery.error?.message}
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs
+        defaultValue={
+          canViewVenue ? "venue" : canManageBilling ? "billing" : "general"
+        }
+      >
         <TabsList className="h-auto flex-wrap">
           {canViewVenue && (
             <TabsTrigger value="venue" className="gap-1.5">
@@ -71,7 +264,7 @@ export function SettingsContent() {
           )}
           {canViewVenue && (
             <TabsTrigger value="packages" className="gap-1.5">
-              <Package className="h-4 w-4" />
+              <PackageIcon className="h-4 w-4" />
               {t("packages")}
             </TabsTrigger>
           )}
@@ -82,7 +275,7 @@ export function SettingsContent() {
           {canManageBilling && (
             <TabsTrigger value="billing" className="gap-1.5">
               <Users className="h-4 w-4" />
-              Billing
+              {t("billing")}
             </TabsTrigger>
           )}
         </TabsList>
@@ -91,124 +284,172 @@ export function SettingsContent() {
         <TabsContent value="venue">
           <Card>
             <CardHeader>
-              <CardTitle>{t("venue")}</CardTitle>
-              <CardDescription>Your venue profile and contact information</CardDescription>
+              <CardTitle>{t("venueProfile")}</CardTitle>
+              <CardDescription>{t("venueProfileDesc")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div className="space-y-1.5">
-                  <Label>{t("venueName")}</Label>
-                  <Input
-                    value={venue.name_ar}
-                    onChange={(e) =>
-                      setVenue((v) => ({ ...v, name_ar: e.target.value }))
-                    }
-                    dir="rtl"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t("venueNameEn")}</Label>
-                  <Input
-                    value={venue.name_en}
-                    onChange={(e) =>
-                      setVenue((v) => ({ ...v, name_en: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t("venueType")}</Label>
-                  <Select
-                    value={venue.type}
-                    onValueChange={(v: typeof venue.type) =>
-                      setVenue((vn) => ({ ...vn, type: v }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="hall">Hall</SelectItem>
-                      <SelectItem value="hotel">Hotel</SelectItem>
-                      <SelectItem value="garden">Garden</SelectItem>
-                      <SelectItem value="boat">Boat</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>{t("city")}</Label>
-                  <Select
-                    value={venue.city}
-                    onValueChange={(v: typeof venue.city) =>
-                      setVenue((vn) => ({ ...vn, city: v }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cairo">Cairo</SelectItem>
-                      <SelectItem value="giza">Giza</SelectItem>
-                      <SelectItem value="alexandria">Alexandria</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1.5 sm:col-span-2">
-                  <Label>{t("address")}</Label>
-                  <Input
-                    value={venue.address}
-                    onChange={(e) =>
-                      setVenue((v) => ({ ...v, address: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Primary Phone</Label>
-                  <Input
-                    value={venue.phone_1}
-                    onChange={(e) =>
-                      setVenue((v) => ({ ...v, phone_1: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Secondary Phone</Label>
-                  <Input
-                    value={venue.phone_2 ?? ""}
-                    onChange={(e) =>
-                      setVenue((v) => ({ ...v, phone_2: e.target.value }))
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Instagram URL</Label>
-                  <Input
-                    value={venue.instagram ?? ""}
-                    onChange={(e) =>
-                      setVenue((v) => ({ ...v, instagram: e.target.value }))
-                    }
-                    placeholder="https://instagram.com/..."
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Facebook URL</Label>
-                  <Input
-                    value={venue.facebook ?? ""}
-                    onChange={(e) =>
-                      setVenue((v) => ({ ...v, facebook: e.target.value }))
-                    }
-                    placeholder="https://facebook.com/..."
-                  />
-                </div>
-              </div>
+              {venueLoading ? (
+                <SettingsFormSkeleton />
+              ) : !venueQuery.data ? (
+                <p className="text-sm text-muted-foreground">
+                  {t("loadVenueError")}
+                </p>
+              ) : (
+                <fieldset
+                  disabled={!canEditVenue}
+                  className="contents disabled:opacity-100"
+                >
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label>{t("venueName")}</Label>
+                      <Input
+                        value={venueForm.name_ar}
+                        dir="rtl"
+                        readOnly={!canEditVenue}
+                        onChange={(e) =>
+                          setVenueForm((v) => ({
+                            ...v,
+                            name_ar: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t("venueNameEn")}</Label>
+                      <Input
+                        value={venueForm.name_en}
+                        readOnly={!canEditVenue}
+                        onChange={(e) =>
+                          setVenueForm((v) => ({
+                            ...v,
+                            name_en: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t("venueType")}</Label>
+                      <Select
+                        value={venueForm.type}
+                        disabled={!canEditVenue}
+                        onValueChange={(v: VenueType) =>
+                          setVenueForm((vn) => ({ ...vn, type: v }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="hall">Hall</SelectItem>
+                          <SelectItem value="hotel">Hotel</SelectItem>
+                          <SelectItem value="garden">Garden</SelectItem>
+                          <SelectItem value="boat">Boat</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t("city")}</Label>
+                      <Select
+                        value={venueForm.city}
+                        disabled={!canEditVenue}
+                        onValueChange={(v: CityEnum) =>
+                          setVenueForm((vn) => ({ ...vn, city: v }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="cairo">Cairo</SelectItem>
+                          <SelectItem value="giza">Giza</SelectItem>
+                          <SelectItem value="alexandria">Alexandria</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-1.5 sm:col-span-2">
+                      <Label>{t("address")}</Label>
+                      <Input
+                        value={venueForm.address}
+                        readOnly={!canEditVenue}
+                        onChange={(e) =>
+                          setVenueForm((v) => ({
+                            ...v,
+                            address: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t("primaryPhone")}</Label>
+                      <Input
+                        value={venueForm.phone_1}
+                        readOnly={!canEditVenue}
+                        onChange={(e) =>
+                          setVenueForm((v) => ({
+                            ...v,
+                            phone_1: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t("secondaryPhone")}</Label>
+                      <Input
+                        value={venueForm.phone_2 ?? ""}
+                        readOnly={!canEditVenue}
+                        onChange={(e) =>
+                          setVenueForm((v) => ({
+                            ...v,
+                            phone_2: e.target.value || null,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t("instagramUrl")}</Label>
+                      <Input
+                        value={venueForm.instagram ?? ""}
+                        readOnly={!canEditVenue}
+                        onChange={(e) =>
+                          setVenueForm((v) => ({
+                            ...v,
+                            instagram: e.target.value || null,
+                          }))
+                        }
+                        placeholder="https://instagram.com/..."
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>{t("facebookUrl")}</Label>
+                      <Input
+                        value={venueForm.facebook ?? ""}
+                        readOnly={!canEditVenue}
+                        onChange={(e) =>
+                          setVenueForm((v) => ({
+                            ...v,
+                            facebook: e.target.value || null,
+                          }))
+                        }
+                        placeholder="https://facebook.com/..."
+                      />
+                    </div>
+                  </div>
 
-              <Can permission="venues.edit">
-                <Button onClick={handleSaveVenue} disabled={isSaving}>
-                  {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {t("saveChanges")}
-                </Button>
-              </Can>
+                  <Can permission="venues.edit">
+                    <Button
+                      onClick={handleSaveVenue}
+                      disabled={updateVenue.isPending}
+                    >
+                      {updateVenue.isPending && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      {t("saveChanges")}
+                    </Button>
+                  </Can>
+                </fieldset>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -219,61 +460,103 @@ export function SettingsContent() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>{t("halls")}</CardTitle>
-                <CardDescription>
-                  Manage your venue&apos;s halls and spaces
-                </CardDescription>
+                <CardDescription>{t("hallsSubtitle")}</CardDescription>
               </div>
               <Can permission="venues.edit">
-                <Button size="sm" className="gap-1.5">
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={!venueId}
+                  onClick={() => setHallDialog({ open: true, hall: null })}
+                >
                   <Plus className="h-4 w-4" />
                   {t("addHall")}
                 </Button>
               </Can>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {MOCK_HALLS.map((hall) => (
-                  <div
-                    key={hall.id}
-                    className="flex items-start gap-4 rounded-xl border border-border p-4"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold">{hall.name}</p>
-                        <Badge
-                          variant={hall.is_active ? "success" : "secondary"}
-                          className="text-xs"
-                        >
-                          {hall.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                      </div>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        Capacity: {hall.capacity_min ?? 0}–{hall.capacity_max} guests
-                      </p>
-                      <div className="mt-1.5 flex flex-wrap gap-1">
-                        {hall.amenities.map((a) => (
-                          <span
-                            key={a}
-                            className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+              {hallsQuery.isPending ? (
+                <ListSkeleton />
+              ) : (hallsQuery.data?.length ?? 0) === 0 ? (
+                <EmptyState message={t("noHalls")} />
+              ) : (
+                <div className="space-y-3">
+                  {hallsQuery.data!.map((hall) => (
+                    <div
+                      key={hall.id}
+                      className="rounded-xl border border-border p-4"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold">{hall.name}</p>
+                            <Badge
+                              variant={hall.is_active ? "success" : "secondary"}
+                              className="text-xs"
+                            >
+                              {hall.is_active ? t("active") : t("inactive")}
+                            </Badge>
+                          </div>
+                          <p className="mt-0.5 text-sm text-muted-foreground">
+                            {tCommon("hallSelector")}: {hall.capacity_min ?? 0}–
+                            {hall.capacity_max} guests
+                          </p>
+                          {hall.amenities.length > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {hall.amenities.map((a) => (
+                                <span
+                                  key={a}
+                                  className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
+                                >
+                                  {a}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <Can
+                            permission="venues.edit"
+                            fallback={
+                              <Switch checked={hall.is_active} disabled />
+                            }
                           >
-                            {a}
-                          </span>
-                        ))}
+                            <Switch
+                              checked={hall.is_active}
+                              onCheckedChange={(next) =>
+                                handleToggleHallActive(hall, next)
+                              }
+                            />
+                          </Can>
+                          <Can permission="venues.edit">
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() =>
+                                setHallDialog({ open: true, hall })
+                              }
+                            >
+                              <Pencil className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => setPendingHallDelete(hall)}
+                            >
+                              <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            </Button>
+                          </Can>
+                        </div>
                       </div>
+
+                      <EventTypesManager
+                        hallId={hall.id}
+                        eventTypes={hall.event_record_types ?? []}
+                      />
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Can permission="venues.edit" fallback={<Switch defaultChecked={hall.is_active} disabled />}>
-                        <Switch defaultChecked={hall.is_active} />
-                      </Can>
-                      <Can permission="venues.edit">
-                        <Button variant="ghost" size="icon-sm">
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </Can>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -284,141 +567,284 @@ export function SettingsContent() {
             <CardHeader className="flex flex-row items-center justify-between">
               <div>
                 <CardTitle>{t("packages")}</CardTitle>
-                <CardDescription>Define pricing packages for bookings</CardDescription>
+                <CardDescription>{t("packagesSubtitle")}</CardDescription>
               </div>
               <Can permission="venues.edit">
-                <Button size="sm" className="gap-1.5">
+                <Button
+                  size="sm"
+                  className="gap-1.5"
+                  disabled={!venueId}
+                  onClick={() => setPackageDialog({ open: true, pkg: null })}
+                >
                   <Plus className="h-4 w-4" />
                   {t("addPackage")}
                 </Button>
               </Can>
             </CardHeader>
             <CardContent>
-              <div className="space-y-3">
-                {MOCK_PACKAGES.map((pkg) => (
-                  <div
-                    key={pkg.id}
-                    className="flex items-start gap-4 rounded-xl border border-border p-4"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-semibold">{pkg.name}</p>
-                        <Badge
-                          variant={pkg.is_active ? "success" : "secondary"}
-                          className="text-xs"
-                        >
-                          {pkg.is_active ? "Active" : "Inactive"}
-                        </Badge>
-                        <Badge variant="outline" className="text-xs capitalize">
-                          {pkg.price_type.replace("_", " ")}
-                        </Badge>
-                      </div>
-                      <p className="mt-0.5 text-sm font-semibold text-primary">
-                        {formatCurrency(pkg.base_price)}{" "}
-                        {pkg.price_type === "per_person" ? "/person" : "flat"}
-                      </p>
-                      {pkg.inclusions && (
-                        <p className="mt-1 text-xs text-muted-foreground line-clamp-1">
-                          {pkg.inclusions}
+              {packagesQuery.isPending ? (
+                <ListSkeleton />
+              ) : (packagesQuery.data?.length ?? 0) === 0 ? (
+                <EmptyState message={t("noPackages")} />
+              ) : (
+                <div className="space-y-3">
+                  {packagesQuery.data!.map((pkg) => (
+                    <div
+                      key={pkg.id}
+                      className="flex items-start gap-4 rounded-xl border border-border p-4"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold">{pkg.name}</p>
+                          <Badge
+                            variant={pkg.is_active ? "success" : "secondary"}
+                            className="text-xs"
+                          >
+                            {pkg.is_active ? t("active") : t("inactive")}
+                          </Badge>
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {pkg.price_type === "per_person"
+                              ? t("perPerson")
+                              : t("flatRate")}
+                          </Badge>
+                        </div>
+                        <p className="mt-0.5 text-sm font-semibold text-primary">
+                          {formatCurrency(pkg.base_price)}{" "}
+                          <span className="text-xs text-muted-foreground">
+                            {pkg.price_type === "per_person"
+                              ? `/${t("perPersonShort")}`
+                              : t("flatShort")}
+                          </span>
                         </p>
-                      )}
+                        {pkg.inclusions && (
+                          <p className="mt-1 line-clamp-1 text-xs text-muted-foreground">
+                            {pkg.inclusions}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Can
+                          permission="venues.edit"
+                          fallback={
+                            <Switch checked={pkg.is_active} disabled />
+                          }
+                        >
+                          <Switch
+                            checked={pkg.is_active}
+                            onCheckedChange={(next) =>
+                              handleTogglePackageActive(pkg, next)
+                            }
+                          />
+                        </Can>
+                        <Can permission="venues.edit">
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() =>
+                              setPackageDialog({ open: true, pkg })
+                            }
+                          >
+                            <Pencil className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => setPendingPackageDelete(pkg)}
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </Can>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <Can permission="venues.edit" fallback={<Switch defaultChecked={pkg.is_active} disabled />}>
-                        <Switch defaultChecked={pkg.is_active} />
-                      </Can>
-                      <Can permission="venues.edit">
-                        <Button variant="ghost" size="icon-sm">
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
-                      </Can>
-                    </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
 
         {/* ─── General Tab ─── */}
         <TabsContent value="general">
-          <div className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Edit Policy</CardTitle>
-                <CardDescription>
-                  Control when bookings can be edited
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-1.5">
-                  <Label>{t("editCutoff")}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      defaultValue={30}
-                      className="w-24"
-                      min={0}
-                      max={180}
-                    />
-                    <span className="text-sm text-muted-foreground">days</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Bookings cannot be edited within this many days of the event date
-                  </p>
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("editPolicy")}</CardTitle>
+              <CardDescription>{t("editPolicyDesc")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label>{t("editCutoff")}</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    className="w-24"
+                    min={0}
+                    max={180}
+                    value={venueForm.edit_cutoff_days}
+                    readOnly={!canEditVenue}
+                    onChange={(e) =>
+                      setVenueForm((v) => ({
+                        ...v,
+                        edit_cutoff_days: parseInt(e.target.value, 10) || 0,
+                      }))
+                    }
+                  />
+                  <span className="text-sm text-muted-foreground">
+                    {t("days")}
+                  </span>
                 </div>
-                <div className="flex items-center justify-between rounded-xl border border-border p-4">
-                  <div>
-                    <p className="text-sm font-medium">Manager Override</p>
-                    <p className="text-xs text-muted-foreground">
-                      Allow managers to bypass the edit cutoff
-                    </p>
-                  </div>
-                  <Switch defaultChecked={venue.edit_cutoff_override} />
-                </div>
-              </CardContent>
-            </Card>
+                <p className="text-xs text-muted-foreground">
+                  {t("editCutoffHelp")}
+                </p>
+              </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Supabase Connection</CardTitle>
-                <CardDescription>
-                  Configure your database connection
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-xl bg-amber-50 border border-amber-200 p-4 text-sm text-amber-800">
-                  <p className="font-semibold mb-1">⚠ Supabase Not Connected</p>
-                  <p>
-                    The app is currently running with mock data. To connect to
-                    your Supabase project, add your credentials to{" "}
-                    <code className="bg-amber-100 px-1 rounded">.env.local</code>
-                    :
+              <div className="flex items-center justify-between rounded-xl border border-border p-4">
+                <div>
+                  <p className="text-sm font-medium">{t("managerOverride")}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("managerOverrideDesc")}
                   </p>
-                  <pre className="mt-2 text-xs bg-amber-100 rounded p-2 overflow-auto">
-                    {`NEXT_PUBLIC_SUPABASE_URL=https://xxx.supabase.co\nNEXT_PUBLIC_SUPABASE_ANON_KEY=your-key`}
-                  </pre>
                 </div>
-                <div className="space-y-1.5">
-                  <Label>Supabase URL</Label>
-                  <Input
-                    placeholder="https://your-project-ref.supabase.co"
-                    disabled
+                <Can
+                  permission="venues.edit"
+                  fallback={
+                    <Switch checked={venueForm.edit_cutoff_override} disabled />
+                  }
+                >
+                  <Switch
+                    checked={venueForm.edit_cutoff_override}
+                    onCheckedChange={(next) =>
+                      setVenueForm((v) => ({
+                        ...v,
+                        edit_cutoff_override: next,
+                      }))
+                    }
                   />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Anon Key</Label>
-                  <Input
-                    type="password"
-                    placeholder="Configure in .env.local"
-                    disabled
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </Can>
+              </div>
+
+              <Can permission="venues.edit">
+                <Button
+                  onClick={handleSaveVenue}
+                  disabled={updateVenue.isPending || !venueId}
+                >
+                  {updateVenue.isPending && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {t("saveChanges")}
+                </Button>
+              </Can>
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ─── Hall dialog (add + edit) ─── */}
+      {venueId && (
+        <HallFormDialog
+          open={hallDialog.open}
+          hall={hallDialog.hall}
+          venueId={venueId}
+          onClose={() => setHallDialog({ open: false, hall: null })}
+        />
+      )}
+
+      {/* ─── Package dialog (add + edit) ─── */}
+      {venueId && (
+        <PackageFormDialog
+          open={packageDialog.open}
+          pkg={packageDialog.pkg}
+          venueId={venueId}
+          onClose={() => setPackageDialog({ open: false, pkg: null })}
+        />
+      )}
+
+      {/* ─── Delete-hall confirmation ─── */}
+      <AlertDialog
+        open={!!pendingHallDelete}
+        onOpenChange={(o) => !o && setPendingHallDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmDeleteHall")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingHallDelete?.name ? `"${pendingHallDelete.name}" — ` : ""}
+              {t("confirmDeleteHallDesc")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeleteHall}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {tCommon("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ─── Delete-package confirmation ─── */}
+      <AlertDialog
+        open={!!pendingPackageDelete}
+        onOpenChange={(o) => !o && setPendingPackageDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmDeletePackage")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingPackageDelete?.name
+                ? `"${pendingPackageDelete.name}" — `
+                : ""}
+              {t("confirmDeletePackageDesc")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon("cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDeletePackage}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {tCommon("delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}
+
+// ─── Helper micro-components ──────────────────────────────────────────────────
+
+function ListSkeleton() {
+  return (
+    <div className="space-y-3">
+      {[0, 1, 2].map((i) => (
+        <div
+          key={i}
+          className="h-20 animate-pulse rounded-xl border border-border bg-muted/40"
+        />
+      ))}
+    </div>
+  );
+}
+
+function SettingsFormSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="space-y-2">
+          <div className="h-3 w-24 animate-pulse rounded bg-muted/60" />
+          <div className="h-10 animate-pulse rounded-xl bg-muted/40" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-10 text-sm text-muted-foreground">
+      {message}
     </div>
   );
 }

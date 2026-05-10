@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,59 +15,84 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { toast } from "@/components/ui/toaster";
+import { useCreateClient } from "@/lib/queries/clients";
+
+const emptyForm = {
+  name: "",
+  phone_1: "",
+  phone_2: "",
+  email: "",
+  notes: "",
+};
 
 interface NewClientDialogProps {
+  venueId: string | null;
   open: boolean;
   onClose: () => void;
 }
 
-export function NewClientDialog({ open, onClose }: NewClientDialogProps) {
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    phone_1: "",
-    phone_2: "",
-    email: "",
-    notes: "",
-  });
+export function NewClientDialog({ venueId, open, onClose }: NewClientDialogProps) {
+  const t = useTranslations("clients");
+  const tc = useTranslations("common");
+  const createClientMutation = useCreateClient();
+  const [form, setForm] = useState(emptyForm);
+
+  useEffect(() => {
+    if (open) setForm(emptyForm);
+  }, [open]);
 
   async function handleSubmit() {
-    setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 700));
-    // TODO: supabase.from("clients").insert(...)
-    toast({ variant: "success", title: "Client added" });
-    setIsSubmitting(false);
-    onClose();
+    if (!venueId) return;
+    try {
+      await createClientMutation.mutateAsync({
+        venue_id: venueId,
+        name: form.name,
+        phone_1: form.phone_1,
+        phone_2: form.phone_2 || null,
+        email: form.email || null,
+        notes: form.notes || null,
+      });
+      toast({ variant: "success", title: t("clientCreatedToast") });
+      setForm(emptyForm);
+      onClose();
+    } catch {
+      /* useCreateClient already toasts mutation errors */
+    }
   }
 
+  const isBusy = createClientMutation.isPending;
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Client</DialogTitle>
+          <DialogTitle>{t("new")}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
+          {!venueId && (
+            <p className="text-sm text-amber-800">{t("noVenueHint")}</p>
+          )}
           <div className="space-y-1.5">
-            <Label>Full Name *</Label>
+            <Label>{t("fullNameLabel")}</Label>
             <Input
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Client full name"
+              placeholder={t("fullNamePlaceholder")}
             />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label>Primary Phone *</Label>
+              <Label>{t("primaryPhoneLabel")}</Label>
               <Input
                 value={form.phone_1}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, phone_1: e.target.value }))
                 }
-                placeholder="01xxxxxxxxx"
+                placeholder={t("primaryPhonePlaceholder")}
               />
             </div>
             <div className="space-y-1.5">
-              <Label>Secondary Phone</Label>
+              <Label>{t("secondaryPhoneLabel")}</Label>
               <Input
                 value={form.phone_2}
                 onChange={(e) =>
@@ -76,7 +102,7 @@ export function NewClientDialog({ open, onClose }: NewClientDialogProps) {
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Email</Label>
+            <Label>{t("email")}</Label>
             <Input
               type="email"
               value={form.email}
@@ -86,7 +112,7 @@ export function NewClientDialog({ open, onClose }: NewClientDialogProps) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label>Notes</Label>
+            <Label>{t("notesLabel")}</Label>
             <Textarea
               value={form.notes}
               onChange={(e) =>
@@ -97,15 +123,20 @@ export function NewClientDialog({ open, onClose }: NewClientDialogProps) {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
+          <Button variant="outline" onClick={() => onClose()} disabled={isBusy}>
+            {tc("cancel")}
           </Button>
           <Button
-            onClick={handleSubmit}
-            disabled={isSubmitting || !form.name || !form.phone_1}
+            onClick={() => void handleSubmit()}
+            disabled={
+              isBusy ||
+              !venueId ||
+              !form.name.trim() ||
+              !form.phone_1.trim()
+            }
           >
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Add Client
+            {isBusy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("addClient")}
           </Button>
         </DialogFooter>
       </DialogContent>

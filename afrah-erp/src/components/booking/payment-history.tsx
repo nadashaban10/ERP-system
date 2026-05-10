@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import { PlusCircle, Receipt } from "lucide-react";
+import { PlusCircle, Receipt, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,11 +22,11 @@ import {
   SheetFooter,
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
-import { MOCK_PAYMENTS } from "@/lib/mock-data";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { toast } from "@/components/ui/toaster";
 import type { Payment } from "@/lib/types/database";
 import { Can } from "@/components/auth/can";
+import { useLogPayment, usePaymentsForBooking } from "@/lib/queries/payments";
 
 interface PaymentHistoryProps {
   bookingId: string;
@@ -44,8 +44,13 @@ export function PaymentHistory({
   const t = useTranslations("payments");
   const locale = useLocale();
   const [logOpen, setLogOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const payments = MOCK_PAYMENTS.filter((p) => p.booking_id === bookingId);
+
+  const listQuery = usePaymentsForBooking(bookingId);
+  const payments = listQuery.data ?? [];
+  const isLoading = listQuery.isPending;
+
+  const logPayment = useLogPayment();
+  const isSubmitting = logPayment.isPending;
 
   const [form, setForm] = useState({
     amount: "",
@@ -56,12 +61,33 @@ export function PaymentHistory({
   });
 
   async function handleSubmit() {
-    setIsSubmitting(true);
-    await new Promise((r) => setTimeout(r, 700));
-    // TODO: supabase.rpc("log_payment", { booking_id: bookingId, ...form })
-    toast({ variant: "success", title: "Payment logged successfully" });
-    setIsSubmitting(false);
-    setLogOpen(false);
+    const amt = parseFloat(form.amount);
+    if (Number.isNaN(amt) || amt <= 0) {
+      toast({ variant: "destructive", title: t("invalidAmount") });
+      return;
+    }
+
+    try {
+      await logPayment.mutateAsync({
+        bookingId,
+        amount: amt,
+        method: form.method,
+        paid_at_date: form.paid_at,
+        milestone: form.milestone || null,
+        notes: form.notes.trim() || null,
+      });
+      toast({ variant: "success", title: t("loggedSuccess") });
+      setForm({
+        amount: "",
+        method: "cash",
+        paid_at: new Date().toISOString().split("T")[0],
+        milestone: "deposit",
+        notes: "",
+      });
+      setLogOpen(false);
+    } catch {
+      /* onError on mutation hook */
+    }
   }
 
   const paidPct = totalAmount > 0 ? (amountPaid / totalAmount) * 100 : 0;
@@ -78,10 +104,9 @@ export function PaymentHistory({
 
   return (
     <div className="space-y-4">
-      {/* Payment summary bar */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Payment progress</span>
+          <span className="text-muted-foreground">{t("progressLabel")}</span>
           <span className="font-medium">
             {formatCurrency(amountPaid)} / {formatCurrency(totalAmount)}
           </span>
@@ -93,32 +118,36 @@ export function PaymentHistory({
           />
         </div>
         <div className="flex justify-between text-xs text-muted-foreground">
-          <span>{Math.round(paidPct)}% paid</span>
+          <span>{t("percentPaid", { pct: Math.round(paidPct) })}</span>
           {amountOutstanding > 0 && (
-            <span className="text-amber-600 font-medium">
-              {formatCurrency(amountOutstanding)} outstanding
+            <span className="font-medium text-amber-600">
+              {formatCurrency(amountOutstanding)} {t("outstandingSuffix")}
             </span>
           )}
         </div>
       </div>
 
-      {/* Log payment button */}
       <Can permission="payments.create">
         <Button
           variant="outline"
           size="sm"
           className="w-full gap-2"
           onClick={() => setLogOpen(true)}
+          disabled={isLoading}
         >
           <PlusCircle className="h-4 w-4" />
           {t("log")}
         </Button>
       </Can>
 
-      {/* Payment rows */}
-      {payments.length === 0 ? (
+      {isLoading ? (
+        <div className="flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground">
+          <Loader2 className="h-5 w-5 animate-spin" />
+          {t("loading")}
+        </div>
+      ) : payments.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-          <Receipt className="h-7 w-7 mb-2 opacity-30" />
+          <Receipt className="mb-2 h-7 w-7 opacity-30" />
           <p className="text-sm">{t("noPayments")}</p>
         </div>
       ) : (
@@ -129,13 +158,13 @@ export function PaymentHistory({
               className="flex items-center gap-3 rounded-xl border border-border p-3"
             >
               <div
-                className={`rounded-lg px-2 py-1 text-xs font-medium shrink-0 ${
+                className={`shrink-0 rounded-lg px-2 py-1 text-xs font-medium ${
                   methodColors[payment.method] ?? "bg-gray-100 text-gray-700"
                 }`}
               >
                 {payment.method.replace("_", " ")}
               </div>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-semibold">
                   {formatCurrency(payment.amount)}
                 </p>
@@ -153,101 +182,108 @@ export function PaymentHistory({
         </div>
       )}
 
-      {/* Log payment sheet */}
       <Can permission="payments.create">
         <Sheet open={logOpen} onOpenChange={setLogOpen}>
-        <SheetContent side="right">
-          <SheetHeader>
-            <SheetTitle>{t("log")}</SheetTitle>
-          </SheetHeader>
-          <div className="flex flex-col gap-4 p-6">
-            <div className="space-y-1.5">
-              <Label>{t("amount")}</Label>
-              <Input
-                type="number"
-                value={form.amount}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, amount: e.target.value }))
-                }
-                placeholder="0"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("method")}</Label>
-              <Select
-                value={form.method}
-                onValueChange={(v: Payment["method"]) =>
-                  setForm((f) => ({ ...f, method: v }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {(
-                    [
-                      ["cash", t("cash")],
-                      ["bank_transfer", t("bankTransfer")],
-                      ["instapay", t("instapay")],
-                      ["fawry", t("fawry")],
-                      ["vodafone_cash", t("vodafoneCash")],
-                      ["card", t("card")],
-                    ] as [string, string][]
-                  ).map(([v, label]) => (
-                    <SelectItem key={v} value={v}>
-                      {label}
+          <SheetContent side="right">
+            <SheetHeader>
+              <SheetTitle>{t("log")}</SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col gap-4 p-6">
+              <div className="space-y-1.5">
+                <Label>{t("amount")}</Label>
+                <Input
+                  type="number"
+                  value={form.amount}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, amount: e.target.value }))
+                  }
+                  placeholder="0"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("method")}</Label>
+                <Select
+                  value={form.method}
+                  onValueChange={(v: Payment["method"]) =>
+                    setForm((f) => ({ ...f, method: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {(
+                      [
+                        ["cash", t("cash")],
+                        ["bank_transfer", t("bankTransfer")],
+                        ["instapay", t("instapay")],
+                        ["fawry", t("fawry")],
+                        ["vodafone_cash", t("vodafoneCash")],
+                        ["card", t("card")],
+                        ["adjustment", t("adjustment")],
+                      ] as [string, string][]
+                    ).map(([v, label]) => (
+                      <SelectItem key={v} value={v}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("date")}</Label>
+                <Input
+                  type="date"
+                  value={form.paid_at}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, paid_at: e.target.value }))
+                  }
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("milestone")}</Label>
+                <Select
+                  value={form.milestone}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, milestone: v }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="deposit">{t("deposit")}</SelectItem>
+                    <SelectItem value="2nd_payment">
+                      {t("secondPayment")}
                     </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                    <SelectItem value="final">{t("final")}</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>{t("notes")}</Label>
+                <Textarea
+                  value={form.notes}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, notes: e.target.value }))
+                  }
+                  rows={2}
+                />
+              </div>
             </div>
-            <div className="space-y-1.5">
-              <Label>{t("date")}</Label>
-              <Input
-                type="date"
-                value={form.paid_at}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, paid_at: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("milestone")}</Label>
-              <Select
-                value={form.milestone}
-                onValueChange={(v) => setForm((f) => ({ ...f, milestone: v }))}
+            <SheetFooter className="px-6">
+              <Button
+                className="w-full"
+                onClick={() => void handleSubmit()}
+                disabled={isSubmitting || !form.amount}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="deposit">{t("deposit")}</SelectItem>
-                  <SelectItem value="2nd_payment">{t("secondPayment")}</SelectItem>
-                  <SelectItem value="final">{t("final")}</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>{t("notes")}</Label>
-              <Textarea
-                value={form.notes}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, notes: e.target.value }))
-                }
-                rows={2}
-              />
-            </div>
-          </div>
-          <SheetFooter className="px-6">
-            <Button
-              className="w-full"
-              onClick={handleSubmit}
-              disabled={isSubmitting || !form.amount}
-            >
-              {t("submit")}
-            </Button>
-          </SheetFooter>
-        </SheetContent>
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t("submit")}
+              </Button>
+            </SheetFooter>
+          </SheetContent>
         </Sheet>
       </Can>
     </div>

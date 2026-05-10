@@ -1,17 +1,18 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import {
   ArrowLeft,
-  Phone,
-  Mail,
-  Calendar,
-  Users,
-  Package2,
-  MessageSquare,
   ArrowRight,
+  Calendar,
+  Loader2,
+  Mail,
+  MessageSquare,
+  Package2,
+  Phone,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,17 +21,19 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ReminderTimeline } from "@/components/inquiry/reminder-timeline";
 import { SetPendingSheet } from "@/components/inquiry/set-pending-sheet";
 import { LogOutcomeSheet } from "@/components/inquiry/log-outcome-sheet";
-import { MOCK_INQUIRIES } from "@/lib/mock-data";
+import { BookingWizard } from "@/components/booking/booking-wizard";
 import { formatDate } from "@/lib/utils";
-import { toast } from "@/components/ui/toaster";
 import { Can } from "@/components/auth/can";
+import {
+  inquiryToBookingConversionContext,
+  useInquiryDetail,
+} from "@/lib/queries/inquiries";
 
 interface InquiryDetailContentProps {
   params: Promise<{ id: string; locale: string }>;
@@ -43,17 +46,34 @@ export function InquiryDetailContent({ params }: InquiryDetailContentProps) {
   const locale = useLocale();
   const [pendingOpen, setPendingOpen] = useState(false);
   const [outcomeOpen, setOutcomeOpen] = useState(false);
+  const [convertWizardOpen, setConvertWizardOpen] = useState(false);
 
-  const inquiry = MOCK_INQUIRIES.find((i) => i.id === id);
+  const detailQuery = useInquiryDetail(id);
+  const inquiry = detailQuery.data;
+
+  const inquiryConversionContext = useMemo(
+    () =>
+      inquiry && convertWizardOpen ? inquiryToBookingConversionContext(inquiry) : null,
+    [inquiry, convertWizardOpen]
+  );
+
+  if (detailQuery.isPending) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] gap-3 text-muted-foreground">
+        <Loader2 className="h-8 w-8 animate-spin" aria-hidden />
+        <p className="text-sm">{t("loadingList")}</p>
+      </div>
+    );
+  }
 
   if (!inquiry) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <p className="text-muted-foreground">Inquiry not found</p>
+        <p className="text-muted-foreground">{t("notFound")}</p>
         <Button asChild variant="outline">
           <Link href={`/${locale}/inquiries`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Inquiries
+            {t("backToList")}
           </Link>
         </Button>
       </div>
@@ -73,7 +93,7 @@ export function InquiryDetailContent({ params }: InquiryDetailContentProps) {
         <Button variant="ghost" size="sm" asChild>
           <Link href={`/${locale}/inquiries`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Inquiries
+            {t("title")}
           </Link>
         </Button>
         <div className="flex-1" />
@@ -101,9 +121,7 @@ export function InquiryDetailContent({ params }: InquiryDetailContentProps) {
                 <Button
                   size="sm"
                   className="gap-1.5"
-                  onClick={() => {
-                    toast({ variant: "info", title: "Opening booking wizard..." });
-                  }}
+                  onClick={() => setConvertWizardOpen(true)}
                 >
                   <ArrowRight className="h-4 w-4" />
                   {t("convert")}
@@ -323,6 +341,19 @@ export function InquiryDetailContent({ params }: InquiryDetailContentProps) {
         inquiry={inquiry}
         open={outcomeOpen}
         onClose={() => setOutcomeOpen(false)}
+        onConvertToBooking={() => {
+          setOutcomeOpen(false);
+          setConvertWizardOpen(true);
+        }}
+      />
+
+      <BookingWizard
+        open={convertWizardOpen}
+        conversion={inquiryConversionContext}
+        defaultDate={
+          inquiry.desired_date == null ? undefined : inquiry.desired_date.slice(0, 10)
+        }
+        onClose={() => setConvertWizardOpen(false)}
       />
     </div>
   );

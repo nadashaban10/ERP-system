@@ -1,10 +1,19 @@
 /**
- * Mock data for development — replace API calls with real Supabase queries
- * once the project is connected to Supabase.
+ * Mock data for development.
+ *
+ * Modules already migrated to real Supabase data are removed from here.
+ * Remaining mocks will go away as the matching module is integrated.
+ *
+ *   ✅ Module 1 (Venue settings) — MOCK_VENUE removed
+ *   ✅ Module 2 (Dashboard) — live queries; MOCK_DASHBOARD unused (kept for reference)
+ *   ✅ Module 3 (Clients) — live queries; MOCK_CLIENTS here only seeds embedded rows for mock bookings
+ *   ✅ Module 5 — Bookings live; calendar uses ranged Supabase booking query (+ hall URL param)
+ *   ✅ Module 6 (Payments) — booking detail loads payments + log_payment RPC; MOCK_PAYMENTS retained for reference
+ *   ✅ Module 7 (Inquiries) — list/detail live; reminders from Supabase + RPCs wired; MOCK_REMINDERS + MOCK_INQUIRIES retained for MOCK_DASHBOARD / reference seeds only
+ *   ✅ Module 8 (Notifications) — top bar bell uses notifications table; MOCK_NOTIFICATIONS retained for reference
  */
 
 import type {
-  Venue,
   Hall,
   Client,
   Booking,
@@ -16,30 +25,7 @@ import type {
   BookingEditHistory,
 } from "@/lib/types/database";
 
-// ─── Venue ────────────────────────────────────────────────────────────────────
-
-export const MOCK_VENUE: Venue = {
-  id: "v1",
-  name_ar: "قاعة الأفراح الكبرى",
-  name_en: "Grand Afrah Hall",
-  type: "hall",
-  address: "123 شارع التحرير، الزمالك",
-  city: "cairo",
-  district: "Zamalek",
-  phone_1: "01001234567",
-  phone_2: "01101234567",
-  instagram: "https://instagram.com/grand_afrah",
-  facebook: "https://facebook.com/grand_afrah",
-  description_ar: "قاعة أفراح فاخرة في قلب القاهرة",
-  description_en: "Luxury wedding hall in the heart of Cairo",
-  logo_url: null,
-  marketplace_active: false,
-  edit_cutoff_days: 30,
-  edit_cutoff_override: true,
-  created_at: "2024-01-01T00:00:00Z",
-};
-
-// ─── Halls ────────────────────────────────────────────────────────────────────
+// ─── Halls (still used by Modules 2 + 5 — remove after those migrate) ────────
 
 export const MOCK_HALLS: Hall[] = [
   {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
 import Link from "next/link";
 import { PlusCircle, Search, Filter, ExternalLink, Clock } from "lucide-react";
@@ -16,37 +16,60 @@ import {
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { MOCK_INQUIRIES } from "@/lib/mock-data";
 import { formatDate, cn } from "@/lib/utils";
 import { NewInquiryDialog } from "./new-inquiry-dialog";
 import { Can } from "@/components/auth/can";
+import { useInquiriesList } from "@/lib/queries/inquiries";
+
+const INQUIRY_STATUSES = [
+  "new",
+  "contacted",
+  "pending",
+  "toured",
+  "quoted",
+  "converted",
+  "cancelled",
+] as const;
 
 export function InquiriesContent() {
   const t = useTranslations("inquiries");
   const tStatuses = useTranslations("inquiries.statuses");
+  const tCommon = useTranslations("common");
   const locale = useLocale();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [newOpen, setNewOpen] = useState(false);
 
-  const filtered = MOCK_INQUIRIES.filter((i) => {
-    const matchSearch =
-      !search ||
-      i.client?.name?.toLowerCase().includes(search.toLowerCase()) ||
-      i.client?.phone_1?.includes(search);
-    const matchStatus = statusFilter === "all" || i.status === statusFilter;
-    return matchSearch && matchStatus;
-  });
+  const listQuery = useInquiriesList({ status: statusFilter });
+  const inquiriesList = listQuery.data ?? [];
+  const isLoadingList = listQuery.isPending;
 
-  const overdueIds = new Set(
-    MOCK_INQUIRIES.filter(
-      (i) =>
-        i.follow_up_date &&
-        new Date(i.follow_up_date) <= new Date() &&
-        i.status !== "cancelled" &&
-        i.status !== "converted"
-    ).map((i) => i.id)
+  const overdueIds = useMemo(
+    () =>
+      new Set(
+        inquiriesList
+          .filter(
+            (i) =>
+              i.follow_up_date &&
+              new Date(i.follow_up_date) <= new Date() &&
+              i.status !== "cancelled" &&
+              i.status !== "converted"
+          )
+          .map((i) => i.id)
+      ),
+    [inquiriesList]
   );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return inquiriesList.filter((i) => {
+      const matchSearch =
+        !q ||
+        i.client?.name?.toLowerCase().includes(q) ||
+        i.client?.phone_1?.includes(search.trim());
+      return matchSearch;
+    });
+  }, [inquiriesList, search]);
 
   return (
     <div className="space-y-5">
@@ -74,34 +97,47 @@ export function InquiriesContent() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9"
+              disabled={isLoadingList}
             />
           </div>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <Select
+            value={statusFilter}
+            onValueChange={setStatusFilter}
+            disabled={isLoadingList}
+          >
             <SelectTrigger className="w-[160px]">
               <Filter className="mr-2 h-4 w-4 text-muted-foreground" />
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Statuses</SelectItem>
-              <SelectItem value="new">New</SelectItem>
-              <SelectItem value="contacted">Contacted</SelectItem>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="toured">Toured</SelectItem>
-              <SelectItem value="quoted">Quoted</SelectItem>
-              <SelectItem value="converted">Converted</SelectItem>
-              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="all">
+                {tCommon("all")} · {t("status")}
+              </SelectItem>
+              {INQUIRY_STATUSES.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {tStatuses(s)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </Card>
 
       <p className="text-sm text-muted-foreground">
-        {filtered.length} inquiry{filtered.length !== 1 ? "s" : ""} found
+        {isLoadingList
+          ? t("loadingList")
+          : t("inquiryCountPlural", { count: filtered.length })}
       </p>
 
       {/* Inquiries list */}
       <Card className="overflow-hidden">
-        {filtered.length === 0 ? (
+        {isLoadingList ? (
+          <div className="space-y-3 p-6">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-12 animate-pulse rounded-lg bg-muted" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
             <p className="text-sm">{t("noInquiries")}</p>
           </div>
@@ -154,9 +190,9 @@ export function InquiriesContent() {
                           ? formatDate(inq.desired_date, locale)
                           : "—"}
                       </p>
-                      {inq.guest_count && (
+                      {inq.guest_count != null && (
                         <p className="text-xs text-muted-foreground">
-                          ~{inq.guest_count} guests
+                          {t("guestEstimate", { count: inq.guest_count })}
                         </p>
                       )}
                     </td>

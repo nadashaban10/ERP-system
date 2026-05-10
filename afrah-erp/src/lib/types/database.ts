@@ -287,6 +287,7 @@ export interface AvailabilityResult {
   available: boolean;
   status?: BookingStatus;
   client_name?: string;
+  booking_id?: string;
 }
 
 export interface VenueContext {
@@ -298,41 +299,164 @@ export interface VenueContext {
 
 // ─── Database Root Type (for Supabase client) ─────────────────────────────────
 
+// Supabase v2 requires every table to declare a `Relationships` field, AND
+// each Row/Insert/Update must satisfy `Record<string, unknown>`.
+//
+// Plain TS `interface` declarations don't satisfy `Record<string, unknown>`
+// (see TS issue #15300 — interfaces lack an implicit index signature).
+// The `Idx<T>` helper recreates the type via a mapped type, which DOES get
+// the implicit signature and so correctly satisfies Supabase's constraint.
+//
+// This is a temporary shim — replace this whole file with output from
+// `npx supabase gen types typescript --project-id ...` once schema is finalized.
+type Idx<T> = { [K in keyof T]: T[K] } & Record<string, unknown>;
+type Rels = [];
+
 export interface Database {
   public: {
     Tables: {
-      venues: { Row: Venue; Insert: Omit<Venue, "id" | "created_at">; Update: Partial<Venue> };
-      halls: { Row: Hall; Insert: Omit<Hall, "id" | "created_at">; Update: Partial<Hall> };
-      event_record_types: { Row: EventRecordType; Insert: Omit<EventRecordType, "id">; Update: Partial<EventRecordType> };
-      hall_slots: { Row: HallSlot; Insert: Omit<HallSlot, "id">; Update: Partial<HallSlot> };
-      packages: { Row: Package; Insert: Omit<Package, "id" | "created_at">; Update: Partial<Package> };
-      clients: { Row: Client; Insert: Omit<Client, "id" | "created_at">; Update: Partial<Client> };
-      bookings: { Row: Booking; Insert: Omit<Booking, "id" | "created_at" | "updated_at" | "amount_paid" | "amount_outstanding" | "edit_count">; Update: Partial<Booking> };
-      payments: { Row: Payment; Insert: Omit<Payment, "id" | "created_at">; Update: Partial<Payment> };
-      inquiries: { Row: Inquiry; Insert: Omit<Inquiry, "id" | "created_at" | "updated_at" | "no_response_count">; Update: Partial<Inquiry> };
-      inquiry_reminders: { Row: InquiryReminder; Insert: Omit<InquiryReminder, "id" | "created_at">; Update: Partial<InquiryReminder> };
-      notifications: { Row: Notification; Insert: Omit<Notification, "id" | "created_at">; Update: Partial<Notification> };
-      booking_edit_history: { Row: BookingEditHistory; Insert: Omit<BookingEditHistory, "id" | "created_at">; Update: Partial<BookingEditHistory> };
-      venue_users: { Row: VenueUser; Insert: Omit<VenueUser, "id" | "created_at">; Update: Partial<VenueUser> };
+      venues: { Row: Idx<Venue>; Insert: Idx<Omit<Venue, "id" | "created_at">>; Update: Idx<Partial<Venue>>; Relationships: Rels };
+      halls: { Row: Idx<Hall>; Insert: Idx<Omit<Hall, "id" | "created_at">>; Update: Idx<Partial<Hall>>; Relationships: Rels };
+      event_record_types: { Row: Idx<EventRecordType>; Insert: Idx<Omit<EventRecordType, "id">>; Update: Idx<Partial<EventRecordType>>; Relationships: Rels };
+      hall_slots: { Row: Idx<HallSlot>; Insert: Idx<Omit<HallSlot, "id">>; Update: Idx<Partial<HallSlot>>; Relationships: Rels };
+      packages: { Row: Idx<Package>; Insert: Idx<Omit<Package, "id" | "created_at">>; Update: Idx<Partial<Package>>; Relationships: Rels };
+      clients: { Row: Idx<Client>; Insert: Idx<Omit<Client, "id" | "created_at">>; Update: Idx<Partial<Client>>; Relationships: Rels };
+      bookings: {
+        Row: Idx<Booking>;
+        Insert: Idx<Omit<Booking, "id" | "created_at" | "updated_at" | "amount_paid" | "amount_outstanding" | "edit_count">>;
+        Update: Idx<Partial<Booking>>;
+        Relationships: [
+          {
+            foreignKeyName: "bookings_client_id_fkey";
+            columns: ["client_id"];
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bookings_hall_id_fkey";
+            columns: ["hall_id"];
+            referencedRelation: "halls";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bookings_package_id_fkey";
+            columns: ["package_id"];
+            referencedRelation: "packages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bookings_event_type_id_fkey";
+            columns: ["event_type_id"];
+            referencedRelation: "event_record_types";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      payments: { Row: Idx<Payment>; Insert: Idx<Omit<Payment, "id" | "created_at">>; Update: Idx<Partial<Payment>>; Relationships: Rels };
+      inquiries: {
+        Row: Idx<Inquiry>;
+        Insert: Idx<Omit<Inquiry, "id" | "created_at" | "updated_at" | "no_response_count">>;
+        Update: Idx<Partial<Inquiry>>;
+        Relationships: [
+          {
+            foreignKeyName: "inquiries_client_id_fkey";
+            columns: ["client_id"];
+            referencedRelation: "clients";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      inquiry_reminders: { Row: Idx<InquiryReminder>; Insert: Idx<Omit<InquiryReminder, "id" | "created_at">>; Update: Idx<Partial<InquiryReminder>>; Relationships: Rels };
+      notifications: { Row: Idx<Notification>; Insert: Idx<Omit<Notification, "id" | "created_at">>; Update: Idx<Partial<Notification>>; Relationships: Rels };
+      booking_edit_history: { Row: Idx<BookingEditHistory>; Insert: Idx<Omit<BookingEditHistory, "id" | "created_at">>; Update: Idx<Partial<BookingEditHistory>>; Relationships: Rels };
+      venue_users: { Row: Idx<VenueUser>; Insert: Idx<Omit<VenueUser, "id" | "created_at">>; Update: Idx<Partial<VenueUser>>; Relationships: Rels };
     };
+    // Supabase's GenericSchema requires Views; we have none yet.
+    Views: Record<string, never>;
+    // Required by Supabase typed client; populated when running gen-types.
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
     Functions: {
       get_venue_for_user: { Args: Record<string, never>; Returns: VenueContext };
       // Returns a JSON blob with current user's profile + venue/role context.
       // (Use generated types from Supabase later for exact shape.)
       get_my_profile: { Args: Record<string, never>; Returns: Json };
-      get_dashboard_summary: { Args: { hall_id?: string }; Returns: DashboardSummary };
-      check_availability: { Args: { hall_id: string; date: string; shift: ShiftEnum; exclude_booking_id?: string }; Returns: AvailabilityResult };
+      /** Backend returns JSON (see SUPABASE_SETUP); shape differs from `DashboardSummary`. */
+      get_dashboard_summary: { Args: { p_hall_id: string | null }; Returns: Json };
+      check_availability: {
+        Args: {
+          p_hall_id: string;
+          p_event_date: string;
+          p_shift: ShiftEnum;
+          p_exclude_booking?: string | null;
+        };
+        Returns: AvailabilityResult;
+      };
       check_slot_overlap: { Args: { hall_id: string; date: string; start_time: string; end_time: string; exclude_booking_id?: string }; Returns: { available: boolean } };
-      create_booking: { Args: { booking_data: Json }; Returns: { booking_id: string } };
+      /** Payload key must match SQL parameter name (`p_data`). Returns JSON with booking_id / client_id or { error, detail }. */
+      create_booking: { Args: { p_data: Json }; Returns: Json };
       reschedule_booking: { Args: { booking_id: string; new_date: string; new_shift: ShiftEnum; new_hall_id?: string }; Returns: { success: boolean } };
-      cancel_booking: { Args: { booking_id: string; reason: CancellationReason; notes?: string }; Returns: { success: boolean; outstanding_egp: number } };
-      is_edit_allowed: { Args: { booking_id: string; override?: boolean }; Returns: { allowed: boolean; reason?: string; days_remaining?: number } };
-      edit_booking: { Args: { booking_id: string; changes: Json; financial_resolution?: Json; agent_notes?: string; override_cutoff?: boolean }; Returns: { success: boolean; edit_count: number } };
-      convert_inquiry_to_booking: { Args: { inquiry_id: string; booking_data: Json }; Returns: { booking_id: string } };
-      set_inquiry_pending: { Args: { inquiry_id: string; pending_reason: PendingReason; pending_notes: string; reminder_data: Json }; Returns: { reminder_id: string } };
-      resolve_reminder: { Args: { reminder_id: string; outcome: ReminderOutcome; outcome_notes: string; next_call_at?: string }; Returns: { action: string; next_reminder_id?: string } };
-      log_no_response: { Args: { reminder_id: string; notes?: string; next_call_at?: string }; Returns: { action: "rescheduled" | "auto_closed"; attempt?: number } };
-      log_payment: { Args: { booking_id: string; amount: number; method: PaymentMethod; paid_at: string; milestone?: string; proof_url?: string; notes?: string }; Returns: { payment_id: string } };
+      cancel_booking: {
+        Args: {
+          p_booking_id: string;
+          p_reason: CancellationReason;
+          p_notes?: string | null;
+        };
+        Returns: { success: boolean; outstanding_egp: number };
+      };
+      is_edit_allowed: {
+        Args: { p_booking_id: string; p_override?: boolean | null };
+        Returns: { allowed: boolean; reason?: string; days_remaining?: number };
+      };
+      edit_booking: {
+        Args: {
+          p_booking_id: string;
+          p_changes: Json;
+          p_financial_resolution?: Json | null;
+          p_agent_notes?: string | null;
+          p_override_cutoff?: boolean | null;
+        };
+        Returns: Json;
+      };
+      convert_inquiry_to_booking: { Args: { p_inquiry_id: string; p_booking_data: Json }; Returns: Json };
+      set_inquiry_pending: {
+        Args: {
+          p_inquiry_id: string;
+          p_reason: PendingReason;
+          p_notes: string;
+          p_reminder_data: Json;
+        };
+        Returns: Json;
+      };
+      resolve_reminder: {
+        Args: {
+          p_reminder_id: string;
+          p_outcome: ReminderOutcome;
+          p_outcome_notes: string;
+          p_next_call_at?: string | null;
+        };
+        Returns: Json;
+      };
+      log_no_response: {
+        Args: {
+          p_reminder_id: string;
+          p_notes?: string | null;
+          p_next_call_at?: string | null;
+        };
+        Returns: Json;
+      };
+      log_payment: {
+        Args: {
+          p_booking_id: string;
+          p_amount: number;
+          p_method: PaymentMethod;
+          p_paid_at: string;
+          p_milestone?: string | null;
+          p_proof_url?: string | null;
+          p_notes?: string | null;
+        };
+        Returns: Json;
+      };
     };
   };
 }

@@ -9,15 +9,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { MOCK_HALLS } from "@/lib/mock-data";
-import { Building2 } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
+import { useActiveHalls } from "@/lib/queries/halls";
 
 export function HallSelector() {
   const t = useTranslations("common");
+  const tDashboard = useTranslations("dashboard");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const currentHall = searchParams.get("hall") ?? "all";
+
+  const { data: halls = [], isPending } = useActiveHalls();
 
   function handleChange(value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -30,14 +33,23 @@ export function HallSelector() {
   }
 
   return (
-    <Select value={currentHall} onValueChange={handleChange}>
+    <Select
+      value={currentHall}
+      onValueChange={handleChange}
+      disabled={isPending}
+    >
       <SelectTrigger className="w-[180px] gap-2">
-        <Building2 className="h-4 w-4 text-muted-foreground shrink-0" />
+        <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+        {isPending ? (
+          <Loader2 className="h-4 w-4 shrink-0 animate-spin text-muted-foreground" />
+        ) : null}
         <SelectValue placeholder={t("hallSelector")} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="all">{t("all")} القاعات</SelectItem>
-        {MOCK_HALLS.map((hall) => (
+        <SelectItem value="all">
+          {t("all")} · {tDashboard("allHalls")}
+        </SelectItem>
+        {halls.map((hall) => (
           <SelectItem key={hall.id} value={hall.id}>
             {hall.name}
           </SelectItem>

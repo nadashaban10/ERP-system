@@ -1,20 +1,51 @@
 "use client";
 
-import { Shield, ShieldAlert, ShieldCheck, UserPlus, Mail } from "lucide-react";
+import { useState } from "react";
+import { useTranslations, useLocale } from "next-intl";
+import {
+  Shield,
+  ShieldAlert,
+  ShieldCheck,
+  UserPlus,
+  Mail,
+  Copy,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Can } from "@/components/auth/can";
 import { useMyProfile } from "@/lib/auth/use-my-profile";
 import { hasPermission } from "@/lib/auth/my-profile";
+import { useVenueUsersList } from "@/lib/queries/venue-users";
+import { formatDate } from "@/lib/utils";
+import { toast } from "@/components/ui/toaster";
 
 export function UsersContent() {
+  const t = useTranslations("users");
+  const tc = useTranslations("common");
+  const locale = useLocale();
   const { data: profile, isLoading } = useMyProfile();
+  const { data: venueUsers = [], isLoading: teamLoading } = useVenueUsersList();
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-sm text-muted-foreground">Loading…</p>
+        <p className="text-sm text-muted-foreground">{tc("loading")}</p>
       </div>
     );
   }
@@ -26,40 +57,53 @@ export function UsersContent() {
           <div className="rounded-2xl p-4 bg-red-100 text-red-600 mb-4">
             <ShieldAlert className="h-8 w-8" />
           </div>
-          <h2 className="text-xl font-bold mb-2">Access denied</h2>
-          <p className="text-sm text-muted-foreground">
-            You don&apos;t have permission to view users.
-          </p>
+          <h2 className="text-xl font-bold mb-2">{t("accessDeniedTitle")}</h2>
+          <p className="text-sm text-muted-foreground">{t("accessDeniedDesc")}</p>
         </CardContent>
       </Card>
     );
+  }
+
+  const snippet = `INSERT INTO venue_users (venue_id, user_id, role)\nVALUES ('<venue_uuid>', '<user_uuid>', 'viewer');`;
+
+  async function copyUserId(id: string) {
+    try {
+      await navigator.clipboard.writeText(id);
+      toast({
+        variant: "success",
+        title: t("clipboardCopiedTitle"),
+      });
+    } catch {
+      toast({
+        variant: "destructive",
+        title: t("clipboardFailedTitle"),
+        description: id,
+      });
+    }
   }
 
   return (
     <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
-          <p className="text-sm text-muted-foreground">
-            Invite teammates and manage their permissions
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
         </div>
         <Can permission="users.create">
-          <Button className="gap-2">
+          <Button type="button" className="gap-2" onClick={() => setInviteOpen(true)}>
             <UserPlus className="h-4 w-4" />
-            Invite user
+            {t("inviteButton")}
           </Button>
         </Can>
       </div>
 
-      {/* Current user card */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
-            You
+            {t("youCardTitle")}
           </CardTitle>
-          <CardDescription>Your current account details</CardDescription>
+          <CardDescription>{t("youCardDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex items-start gap-4">
@@ -73,7 +117,9 @@ export function UsersContent() {
                 {profile?.email}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge variant="info" className="text-xs">{profile?.role}</Badge>
+                <Badge variant="info" className="text-xs">
+                  {profile?.role}
+                </Badge>
                 <Badge
                   variant={profile?.status === "active" ? "success" : "secondary"}
                   className="text-xs"
@@ -86,16 +132,13 @@ export function UsersContent() {
         </CardContent>
       </Card>
 
-      {/* Permissions panel */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            Your permissions
+            {t("permissionsCardTitle")}
           </CardTitle>
-          <CardDescription>
-            These determine which screens and actions you can access.
-          </CardDescription>
+          <CardDescription>{t("yourPermissionsDesc")}</CardDescription>
         </CardHeader>
         <CardContent>
           {profile?.permissions?.length ? (
@@ -107,31 +150,88 @@ export function UsersContent() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No permissions assigned.</p>
+            <p className="text-sm text-muted-foreground">{t("noPermissionsAssigned")}</p>
           )}
         </CardContent>
       </Card>
 
-      {/* Team list (placeholder until you wire the real RPC/table) */}
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader>
           <div>
-            <CardTitle>Team members</CardTitle>
-            <CardDescription>All users in your venue</CardDescription>
+            <CardTitle>{t("teamTitle")}</CardTitle>
+            <CardDescription>{t("teamDesc")}</CardDescription>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="rounded-xl border border-dashed border-border p-8 text-center">
-            <Shield className="h-8 w-8 text-muted-foreground/40 mx-auto mb-2" />
-            <p className="text-sm text-muted-foreground">
-              Team listing will appear here once we wire the <code>venue_users</code> query.
+        <CardContent className="space-y-4">
+          <p className="text-xs text-muted-foreground">{t("noEmailNote")}</p>
+          {teamLoading ? (
+            <p className="text-sm text-muted-foreground py-8 text-center">{t("loadingTeam")}</p>
+          ) : venueUsers.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-8 text-center border border-dashed rounded-xl">
+              {t("emptyTeam")}
             </p>
-            <p className="text-xs text-muted-foreground/70 mt-1">
-              Send the RPC name (e.g. <code>list_venue_users</code>) and I&apos;ll connect it.
-            </p>
-          </div>
+          ) : (
+            <ul className="divide-y divide-border rounded-xl border">
+              {venueUsers.map((row) => {
+                const isYou = profile?.id === row.user_id;
+                return (
+                  <li key={row.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-4">
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-mono text-xs break-all">{row.user_id}</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          aria-label={t("copyUserIdAria")}
+                          onClick={() => void copyUserId(row.user_id)}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                        {isYou && (
+                          <Badge variant="secondary" className="text-[10px]">
+                            {t("youBadge")}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <Badge variant="outline">{row.role}</Badge>
+                        <span>
+                          {t("addedAt")}: {formatDate(row.created_at, locale)}
+                        </span>
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </CardContent>
       </Card>
+
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("inviteHintTitle")}</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-3 text-sm">
+                <p>{t("inviteHintStep1")}</p>
+                <p>{t("inviteHintStep2")}</p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <pre className="rounded-lg bg-muted p-3 text-xs overflow-x-auto font-mono">
+            {snippet}
+          </pre>
+          <p className="text-xs text-muted-foreground">{t("inviteHintFooter")}</p>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>
+              {t("closeInvite")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
