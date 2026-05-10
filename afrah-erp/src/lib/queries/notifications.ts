@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
@@ -8,6 +9,54 @@ import { queryKeys } from "@/lib/queries/keys";
 import { showMutationError, unwrapQuery } from "@/lib/queries/helpers";
 
 const NOTIFICATIONS_PAGE = 50;
+
+/**
+ * Keeps the notifications list fresh when rows change on the server (trigger inserts,
+ * another tab marking read, etc.). Requires Realtime enabled on `public.notifications`
+ * (SUPABASE_SETUP §10).
+ */
+export function useSubscribeToNotifications(userId: string | null | undefined) {
+  const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (!userId) return;
+
+    const supabase = createClient();
+    const filter = `user_id=eq.${userId}`;
+
+    const invalidate = () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.notifications(userId) });
+    };
+
+    const channel = supabase
+      .channel(`notifications:${userId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter,
+        },
+        invalidate
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "notifications",
+          filter,
+        },
+        invalidate
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [userId, queryClient]);
+}
 
 export function useNotifications(userId: string | null | undefined) {
   return useQuery({

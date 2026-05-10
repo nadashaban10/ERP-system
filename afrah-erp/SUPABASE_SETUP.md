@@ -1171,7 +1171,7 @@ CREATE POLICY venue_logos_insert ON storage.objects
 In Supabase dashboard → **Database → Replication**:
 
 1. Find the `notifications` table.
-2. Toggle **Realtime** on.
+2. Toggle **Realtime** on (required for live bell updates: the app subscribes via `useSubscribeToNotifications` and refetches when rows insert/update).
 3. (Optional) Also enable for `bookings` if you want live calendar updates across devices.
 
 ---

@@ -19,6 +19,7 @@ import {
   useMarkAllNotificationsRead,
   useMarkNotificationRead,
   useNotifications,
+  useSubscribeToNotifications,
 } from "@/lib/queries/notifications";
 import { useMyProfile } from "@/lib/auth/use-my-profile";
 
@@ -27,6 +28,8 @@ export function NotificationBell() {
   const locale = useLocale();
   const { data: profile } = useMyProfile();
   const userId = profile?.id;
+
+  useSubscribeToNotifications(userId);
 
   const listQuery = useNotifications(userId);
   const notifications = listQuery.data ?? [];
