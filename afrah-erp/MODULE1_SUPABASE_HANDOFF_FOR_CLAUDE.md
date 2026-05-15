@@ -123,7 +123,7 @@ Minimum permissions required for Module 1 UI behavior:
 
 ### tenancy relation table used by RLS helper
 
-- `venue_users`
+- `user_venues`
   - `venue_id`
   - `user_id`
   - `role`
@@ -142,12 +142,12 @@ Required:
    - `halls`
    - `event_record_types`
    - `packages`
-   - `venue_users`
+   - `user_venues`
 3. Policies:
    - `venues`: user can `select/update` only own venue
    - `halls` + `packages`: `venue_id = current_venue_id()` for read/write
    - `event_record_types`: via hall ownership
-   - `venue_users`: at least enough for `current_venue_id()` and profile context
+   - `user_venues`: at least enough for `current_venue_id()` and profile context
 
 ---
 
@@ -160,7 +160,7 @@ select
   to_regclass('public.halls') as halls,
   to_regclass('public.event_record_types') as event_record_types,
   to_regclass('public.packages') as packages,
-  to_regclass('public.venue_users') as venue_users;
+  to_regclass('public.user_venues') as user_venues;
 
 -- 2) Missing RPC?
 select
@@ -174,13 +174,13 @@ where n.nspname = 'public'
 -- 3) RLS enabled?
 select relname as table_name, relrowsecurity as rls_enabled
 from pg_class
-where relname in ('venues','halls','event_record_types','packages','venue_users')
+where relname in ('venues','halls','event_record_types','packages','user_venues')
 order by relname;
 
 -- 4) Policies present?
 select schemaname, tablename, policyname, cmd
 from pg_policies
-where tablename in ('venues','halls','event_record_types','packages','venue_users')
+where tablename in ('venues','halls','event_record_types','packages','user_venues')
 order by tablename, policyname;
 ```
 
@@ -193,7 +193,7 @@ Ask Claude for:
 1. **Idempotent SQL migration** (`if not exists`, safe `drop policy if exists` + recreate where needed)
 2. Create/fix `get_my_profile()` RPC to return the frontend shape above
 3. Ensure RLS policies satisfy module 1 reads/writes
-4. Optional seed for one owner user mapped in `venue_users` (dev only)
+4. Optional seed for one owner user mapped in `user_venues` (dev only)
 5. A short post-migration verification script with expected results
 
 ---
@@ -213,7 +213,7 @@ I already integrated frontend queries/mutations for these resources:
 Generate ONE idempotent SQL migration for Postgres/Supabase that:
 1) Ensures required tables/columns/enums for those resources exist.
 2) Ensures current_venue_id() exists.
-3) Enables and fixes RLS policies for venues, halls, event_record_types, packages, venue_users.
+3) Enables and fixes RLS policies for venues, halls, event_record_types, packages, user_venues.
 4) Creates or replaces get_my_profile() returning:
    { id, role, email, status, venues, full_name, permissions }
    with permissions including at least: venues.view, venues.edit, billing.manage for owner-like roles.

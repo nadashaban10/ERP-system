@@ -16,6 +16,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NotificationBell } from "./notification-bell";
+import { HallSelector } from "@/components/shared/hall-selector";
+import { VenueSelector } from "@/components/shared/venue-selector";
 import { createClient } from "@/lib/supabase/client";
 import { useMyProfile } from "@/lib/auth/use-my-profile";
 import { hasPermission } from "@/lib/auth/my-profile";
@@ -46,7 +48,6 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
     router.push(newPath);
   }
 
-  const venueName = profile?.venues?.length ? "Venue" : undefined;
   const displayName = profile?.full_name ?? profile?.email ?? "User";
   const canViewSettings = hasPermission(profile, "venues.view") || hasPermission(profile, "users.view") || hasPermission(profile, "billing.manage");
 
@@ -62,11 +63,9 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
         <Menu className="h-5 w-5" />
       </Button>
 
-      {/* Venue name */}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-muted-foreground truncate hidden sm:block">
-          {venueName ?? ""}
-        </p>
+      <div className="flex flex-1 min-w-0 items-center gap-2 overflow-hidden">
+        <VenueSelector />
+        <HallSelector />
       </div>
 
       {/* Right actions */}

@@ -96,6 +96,7 @@ export function HallFormDialog({ open, onClose, hall, venueId }: HallFormDialogP
       if (isEdit && hall) {
         await updateHall.mutateAsync({
           id: hall.id,
+          venueId: hall.venue_id,
           changes: {
             name: form.name.trim(),
             capacity_min: capacityMin,

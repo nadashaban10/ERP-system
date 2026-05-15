@@ -1,24 +1,29 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useVenueSelection } from "@/lib/auth/venue-selection-context";
 import { createClient } from "@/lib/supabase/client";
 import type { Venue } from "@/lib/types/database";
 import { queryKeys } from "@/lib/queries/keys";
 import { unwrapMutation, unwrapQuery } from "@/lib/queries/helpers";
 
 /**
- * Load the current user's venue.
- *
- * RLS in Supabase scopes `venues` to the user's tenant — `.single()` returns
- * exactly the venue this user belongs to. Soft-fails to `null` if the table
- * isn't provisioned yet.
+ * Full venue row for the **active** selection (`selectedVenueId` from context).
+ * Venues are listed on login via `get_my_profile`; this loads detail when needed (RLS-scoped).
  */
 export function useVenue() {
+  const { selectedVenueId } = useVenueSelection();
+
   return useQuery({
-    queryKey: queryKeys.venue,
+    queryKey: queryKeys.venue(selectedVenueId ?? "__none__"),
+    enabled: !!selectedVenueId,
     queryFn: async (): Promise<Venue | null> => {
       const supabase = createClient();
-      const response = await supabase.from("venues").select("*").maybeSingle();
+      const response = await supabase
+        .from("venues")
+        .select("*")
+        .eq("id", selectedVenueId as string)
+        .maybeSingle();
       return unwrapQuery<Venue | null>(response, null, "load venue");
     },
   });
@@ -62,7 +67,7 @@ export function useUpdateVenue() {
       return unwrapMutation<Venue>(response, "update venue");
     },
     onSuccess: (data) => {
-      queryClient.setQueryData(queryKeys.venue, data);
+      queryClient.setQueryData(queryKeys.venue(data.id), data);
     },
   });
 }

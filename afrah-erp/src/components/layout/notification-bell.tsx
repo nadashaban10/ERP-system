@@ -27,7 +27,7 @@ export function NotificationBell() {
   const t = useTranslations("notifications");
   const locale = useLocale();
   const { data: profile } = useMyProfile();
-  const userId = profile?.id;
+  const userId = profile?.user_id;
 
   useSubscribeToNotifications(userId);
 

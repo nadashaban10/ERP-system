@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type { Notification } from "@/lib/types/database";
+import { toast } from "@/components/ui/toaster";
 import { queryKeys } from "@/lib/queries/keys";
 import { showMutationError, unwrapQuery } from "@/lib/queries/helpers";
 
@@ -38,7 +39,17 @@ export function useSubscribeToNotifications(userId: string | null | undefined) {
           table: "notifications",
           filter,
         },
-        invalidate
+        (payload) => {
+          invalidate();
+          const row = payload.new as Notification | undefined;
+          if (row?.title) {
+            toast({
+              variant: "info",
+              title: row.title,
+              description: row.body ?? undefined,
+            });
+          }
+        }
       )
       .on(
         "postgres_changes",

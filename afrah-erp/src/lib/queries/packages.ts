@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { Package } from "@/lib/types/database";
 import { queryKeys } from "@/lib/queries/keys";
-import { unwrapMutation, unwrapQuery } from "@/lib/queries/helpers";
+import { showMutationError, unwrapMutation, unwrapQuery } from "@/lib/queries/helpers";
 
 export function usePackages() {
   return useQuery({
@@ -92,6 +92,7 @@ export function useUpdatePackage() {
 export function useDeletePackage() {
   const queryClient = useQueryClient();
   return useMutation({
+    /** Same as REST: `DELETE /packages?id=eq.{id}` (RLS applies). */
     mutationFn: async (id: string) => {
       const supabase = createClient();
       const { error } = await supabase.from("packages").delete().eq("id", id);
@@ -100,6 +101,11 @@ export function useDeletePackage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.packages });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clientsRoot });
     },
+    onError: (e) => showMutationError(e),
   });
 }

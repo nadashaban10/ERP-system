@@ -24,7 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { StatusBadge } from "@/components/shared/status-badge";
-import { HallSelector } from "@/components/shared/hall-selector";
 import { formatDate, formatCurrency } from "@/lib/utils";
 import { useMyProfile } from "@/lib/auth/use-my-profile";
 import { hasPermission } from "@/lib/auth/my-profile";
@@ -117,14 +116,11 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-2xl font-bold tracking-tight">
-            {t("title")}
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">{t("subtitle")}</p>
-        </div>
-        <HallSelector />
+      <div>
+        <h1 className="bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-2xl font-bold tracking-tight">
+          {t("title")}
+        </h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

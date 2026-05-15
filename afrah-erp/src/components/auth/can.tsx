@@ -2,14 +2,14 @@
 
 import type { ReactNode } from "react";
 import { useMyProfile } from "@/lib/auth/use-my-profile";
-import { hasPermission, type Permission } from "@/lib/auth/my-profile";
+import { hasPermission, type PermissionDotPath } from "@/lib/auth/my-profile";
 
 export function Can({
   permission,
   children,
   fallback = null,
 }: {
-  permission: Permission;
+  permission: PermissionDotPath;
   children: ReactNode;
   fallback?: ReactNode;
 }) {

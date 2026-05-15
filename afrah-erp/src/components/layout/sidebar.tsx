@@ -18,13 +18,13 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useMyProfile } from "@/lib/auth/use-my-profile";
-import { hasPermission, type Permission } from "@/lib/auth/my-profile";
+import { hasPermission, type PermissionDotPath } from "@/lib/auth/my-profile";
 
 interface NavItem {
   key: string;
   href: string;
   icon: React.ReactNode;
-  requires?: Permission[];
+  requires?: PermissionDotPath[];
 }
 
 interface SidebarProps {
@@ -68,7 +68,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       key: "clients",
       href: `/${locale}/clients`,
       icon: <Users className="h-5 w-5" />,
-      requires: ["bookings.view"], // change to "clients.view" if you add it in RPC response
+      requires: ["clients.view", "bookings.view"],
     },
     {
       key: "users",

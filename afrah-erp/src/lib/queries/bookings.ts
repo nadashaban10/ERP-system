@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMyProfile } from "@/lib/auth/use-my-profile";
 import { createClient } from "@/lib/supabase/client";
 import type {
   AvailabilityResult,
@@ -22,6 +23,10 @@ import {
   unwrapMutation,
   unwrapQuery,
 } from "@/lib/queries/helpers";
+import {
+  agentWorkloadCacheKey,
+  applyAgentWorkloadFilter,
+} from "@/lib/queries/agent-scope";
 import type { PostgrestError } from "@supabase/supabase-js";
 
 const BOOKING_LIST_SELECT =
@@ -58,14 +63,20 @@ export type CalendarBookingsRange = {
 };
 
 export function useCalendarBookings(range: CalendarBookingsRange | null) {
+  const { data: profile } = useMyProfile();
+  const agentKey = agentWorkloadCacheKey(profile);
+
   return useQuery({
     queryKey: range
-      ? queryKeys.calendarBookings({
-          from: range.fromInclusive,
-          to: range.toExclusive,
-          hallId: range.hallId,
-        })
-      : (["calendar", "bookings", "pending"] as const),
+      ? [
+          ...queryKeys.calendarBookings({
+            from: range.fromInclusive,
+            to: range.toExclusive,
+            hallId: range.hallId,
+          }),
+          agentKey,
+        ]
+      : (["calendar", "bookings", "pending", agentKey] as const),
     enabled:
       !!range &&
       !!range.fromInclusive &&
@@ -86,6 +97,8 @@ export function useCalendarBookings(range: CalendarBookingsRange | null) {
         q = q.eq("hall_id", range.hallId);
       }
 
+      q = applyAgentWorkloadFilter(q, profile);
+
       const response = await q;
       const rows = unwrapQuery<BookingJoinRow[]>(response, [], "calendar bookings");
       return rows.map(normalizeBookingJoinRow);
@@ -94,6 +107,9 @@ export function useCalendarBookings(range: CalendarBookingsRange | null) {
 }
 
 export function useBookingsList(filters: BookingsListFilters) {
+  const { data: profile } = useMyProfile();
+  const agentKey = agentWorkloadCacheKey(profile);
+
   return useQuery({
     queryKey: queryKeys.bookings({
       scope: "list",
@@ -101,6 +117,7 @@ export function useBookingsList(filters: BookingsListFilters) {
       status: filters.status,
       clientId: filters.clientId ?? "all",
       sortAsc: filters.sortAsc,
+      agentScope: agentKey,
     }),
     queryFn: async (): Promise<Booking[]> => {
       const supabase = createClient();
@@ -115,6 +132,8 @@ export function useBookingsList(filters: BookingsListFilters) {
       }
       if (filters.clientId) q = q.eq("client_id", filters.clientId);
 
+      q = applyAgentWorkloadFilter(q, profile);
+
       const response = await q;
       const rows = unwrapQuery<BookingJoinRow[]>(response, [], "bookings list");
       return rows.map(normalizeBookingJoinRow);
@@ -123,16 +142,20 @@ export function useBookingsList(filters: BookingsListFilters) {
 }
 
 export function useBookingDetail(id: string | null | undefined) {
+  const { data: profile } = useMyProfile();
+  const agentKey = agentWorkloadCacheKey(profile);
+
   return useQuery({
-    queryKey: queryKeys.booking(id ?? "__none__"),
+    queryKey: [...queryKeys.booking(id ?? "__none__"), agentKey] as const,
     enabled: !!id,
     queryFn: async (): Promise<Booking | null> => {
       const supabase = createClient();
-      const response = await supabase
+      let q = supabase
         .from("bookings")
         .select(BOOKING_LIST_SELECT)
-        .eq("id", id as string)
-        .maybeSingle();
+        .eq("id", id as string);
+      q = applyAgentWorkloadFilter(q, profile);
+      const response = await q.maybeSingle();
       const row = unwrapQuery<BookingJoinRow | null>(response, null, "booking detail");
       return row ? normalizeBookingJoinRow(row) : null;
     },
@@ -225,6 +248,11 @@ export function parseCreateBookingRpcResult(payload: Json): {
   };
 }
 
+/**
+ * `create_booking` JSON payload.
+ * Send **`assigned_agent_id`** (uuid) as the canonical assignment; optional **`assigned_to`**
+ * legacy text for human-readable display until the RPC writes only `assigned_agent_id`.
+ */
 export function buildCreateBookingJson(params: {
   hallId: string;
   eventTypeId: string;
@@ -240,7 +268,10 @@ export function buildCreateBookingJson(params: {
   guestCount: number | null;
   status: BookingStatus | string;
   source: BookingSource | string;
-  assignedTo: string;
+  /** Selected agent profile id, or empty when unassigned. */
+  assignedAgentId: string | null;
+  /** Display name for legacy `bookings.assigned_to` text column (optional). */
+  assignedDisplayName: string | null;
   notes: string;
   holdExpiresAt: string | null;
 }): Json {
@@ -283,7 +314,11 @@ export function buildCreateBookingJson(params: {
     source: params.source as string,
     total_amount: total,
     guest_count: guests,
-    assigned_to: params.assignedTo.trim() || null,
+    assigned_agent_id:
+      params.assignedAgentId?.trim() && params.assignedAgentId.trim().length > 0
+        ? params.assignedAgentId.trim()
+        : null,
+    assigned_to: params.assignedDisplayName?.trim() || null,
     notes: params.notes.trim() || null,
     hold_expires_at: holdIso,
   };
@@ -379,7 +414,8 @@ export type EditBookingFormSnapshot = {
   totalAmountNum: number | null;
   guestCountNum: number | null;
   notes: string;
-  assignedTo: string;
+  /** Selected agent profile id, or "" when unassigned. */
+  assignedAgentId: string;
 };
 
 export function normPackageId(raw: string | null | undefined): string | null {
@@ -438,10 +474,10 @@ export function buildEditBookingRpcChanges(args: {
     out.notes = nextNotes;
   }
 
-  const prevAssigned = (b.assigned_to ?? "").trim();
-  const nextAssigned = (f.assignedTo ?? "").trim();
-  if (nextAssigned !== prevAssigned && nextAssigned.length > 0) {
-    out.assigned_to = nextAssigned;
+  const prevAgentId = b.assigned_agent_id?.trim() ?? null;
+  const nextAgentId = f.assignedAgentId.trim() || null;
+  if (prevAgentId !== nextAgentId) {
+    out.assigned_agent_id = nextAgentId;
   }
 
   return out as Json;

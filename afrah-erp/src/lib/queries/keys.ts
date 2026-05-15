@@ -10,8 +10,9 @@ export const queryKeys = {
   myProfile: ["myProfile"] as const,
 
   // Module 1 — Venue settings
-  venue: ["venue"] as const,
-  halls: ["halls"] as const,
+  /** Single venue row for the active selection (`venues.id`). */
+  venue: (venueId: string) => ["venue", venueId] as const,
+  hallsForVenue: (venueId: string) => ["halls", venueId] as const,
   hall: (id: string) => ["halls", id] as const,
   packages: ["packages"] as const,
   package: (id: string) => ["packages", id] as const,
@@ -62,7 +63,18 @@ export const queryKeys = {
 
   // Module 9 — Users
   agents: (ownerId: string) => ["agents", ownerId] as const,
-  venueUsersList: ["venueUsers", "list"] as const,
+  /** Team assignments from `user_venues` (+ joined profiles). */
+  userVenuesTeamList: ["userVenues", "team"] as const,
+  /** `user_venues` rows for an agent (venue ids). */
+  agentVenues: (agentId: string) => ["agent-venues", agentId] as const,
+  /** Venues list for assignment UI — scope `owned` filters by owner user id. */
+  venuesList: (scope: "owned" | "all", ownerUserId: string) =>
+    ["venues", "list", scope, ownerUserId] as const,
+  /** Active owner profiles (super admin create-venue / linking). */
+  ownersList: ["owners", "list"] as const,
+  /** Agents eligible for booking assignment (owner / super_admin UI). */
+  assignableAgents: (scopeKey: string) =>
+    ["assignableAgents", scopeKey] as const,
 
   // Module 10 — Super admin
   platformDashboard: ["platformDashboard"] as const,

@@ -60,6 +60,8 @@ import {
   useCancelBooking,
   useIsEditAllowed,
 } from "@/lib/queries/bookings";
+import { bookingAssignedDisplay } from "@/lib/booking/assigned-label";
+import { useAssignableAgents } from "@/lib/queries/assignable-agents";
 
 const CANCEL_REASONS: CancellationReason[] = [
   "customer_not_reached",
@@ -90,6 +92,7 @@ export function BookingDetailContent({ params }: BookingDetailContentProps) {
   const bookingQuery = useBookingDetail(id);
   const editAllowedQuery = useIsEditAllowed(id);
   const cancelMutation = useCancelBooking();
+  const { data: assignableAgents = [] } = useAssignableAgents();
 
   const booking = bookingQuery.data;
   const bookingLoading = bookingQuery.isPending;
@@ -119,6 +122,8 @@ export function BookingDetailContent({ params }: BookingDetailContentProps) {
       </div>
     );
   }
+
+  const assignedLabel = bookingAssignedDisplay(booking, assignableAgents);
 
   return (
     <div className="space-y-5">
@@ -332,9 +337,7 @@ export function BookingDetailContent({ params }: BookingDetailContentProps) {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">{t("assignedLabel")}</p>
-                  <p className="text-sm font-semibold">
-                    {booking.assigned_to ?? "—"}
-                  </p>
+                  <p className="text-sm font-semibold">{assignedLabel}</p>
                 </div>
               </div>
             </CardContent>

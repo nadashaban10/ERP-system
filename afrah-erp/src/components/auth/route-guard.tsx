@@ -2,14 +2,14 @@
 
 import type { ReactNode } from "react";
 import { useMyProfile } from "@/lib/auth/use-my-profile";
-import { hasPermission, type Permission } from "@/lib/auth/my-profile";
+import { hasPermission, type PermissionDotPath } from "@/lib/auth/my-profile";
 import { AccessDenied } from "@/components/auth/access-denied";
 
 export function RouteGuard({
   permission,
   children,
 }: {
-  permission: Permission | Permission[];
+  permission: PermissionDotPath | PermissionDotPath[];
   children: ReactNode;
 }) {
   const { data: profile, isLoading } = useMyProfile();

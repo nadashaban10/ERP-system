@@ -20,7 +20,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card } from "@/components/ui/card";
-import { HallSelector } from "@/components/shared/hall-selector";
 import { BookingWizard } from "@/components/booking/booking-wizard";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { formatDate, formatCurrency } from "@/lib/utils";
@@ -151,7 +150,6 @@ export function BookingsContent() {
               ))}
             </SelectContent>
           </Select>
-          <HallSelector />
         </div>
       </Card>
 

@@ -26,7 +26,10 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "@/components/ui/toaster";
+import { useMyProfile } from "@/lib/auth/use-my-profile";
 import type { Booking, Json, ShiftEnum } from "@/lib/types/database";
+import { bookingAssignedDisplay } from "@/lib/booking/assigned-label";
+import { useAssignableAgents } from "@/lib/queries/assignable-agents";
 import { useActiveHalls } from "@/lib/queries/halls";
 import { usePackages } from "@/lib/queries/packages";
 import {
@@ -52,7 +55,10 @@ export function EditBookingSheet({
   const tStatus = useTranslations("status");
   const [showFinancialStep, setShowFinancialStep] = useState(false);
 
-  const { data: halls = [], isPending: hallsLoading } = useActiveHalls();
+  const { data: profile } = useMyProfile();
+  const { data: assignableAgents = [] } = useAssignableAgents();
+
+  const { data: halls = [], isPending: hallsLoading } = useActiveHalls(booking.venue_id);
   const { data: packages = [], isPending: pkgsLoading } = usePackages();
   const editMutation = useEditBooking();
 
@@ -64,7 +70,7 @@ export function EditBookingSheet({
     totalAmount: booking.total_amount?.toString() ?? "",
     guestCount: booking.guest_count?.toString() ?? "",
     notes: booking.notes ?? "",
-    assignedTo: booking.assigned_to ?? "",
+    assignedAgentId: booking.assigned_agent_id ?? "",
     agentNotes: "",
     financialResolution: "client_pays_diff",
   });
@@ -80,7 +86,7 @@ export function EditBookingSheet({
       totalAmount: booking.total_amount?.toString() ?? "",
       guestCount: booking.guest_count?.toString() ?? "",
       notes: booking.notes ?? "",
-      assignedTo: booking.assigned_to ?? "",
+      assignedAgentId: booking.assigned_agent_id ?? "",
       agentNotes: "",
       financialResolution: "client_pays_diff",
     });
@@ -109,7 +115,7 @@ export function EditBookingSheet({
       totalAmountNum,
       guestCountNum,
       notes: form.notes,
-      assignedTo: form.assignedTo,
+      assignedAgentId: form.assignedAgentId,
     };
 
     const changes = buildEditBookingRpcChanges({ booking, form: snapshot });
@@ -298,12 +304,33 @@ export function EditBookingSheet({
 
               <div className="space-y-1.5">
                 <Label>{t("assignedLabel")}</Label>
-                <Input
-                  value={form.assignedTo}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, assignedTo: e.target.value }))
-                  }
-                />
+                {profile?.role === "agent" ? (
+                  <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+                    {bookingAssignedDisplay(booking, assignableAgents)}
+                  </p>
+                ) : (
+                  <Select
+                    value={form.assignedAgentId || "__none__"}
+                    onValueChange={(v) =>
+                      setForm((f) => ({
+                        ...f,
+                        assignedAgentId: v === "__none__" ? "" : v,
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("assignedLabel")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Unassigned</SelectItem>
+                      {assignableAgents.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.full_name?.trim() || a.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-1.5">

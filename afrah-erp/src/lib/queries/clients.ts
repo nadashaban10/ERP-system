@@ -1,10 +1,15 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMyProfile } from "@/lib/auth/use-my-profile";
 import { createClient } from "@/lib/supabase/client";
 import type { Client } from "@/lib/types/database";
 import { queryKeys } from "@/lib/queries/keys";
 import { showMutationError, unwrapMutation, unwrapQuery } from "@/lib/queries/helpers";
+import {
+  agentWorkloadCacheKey,
+  applyAgentWorkloadFilter,
+} from "@/lib/queries/agent-scope";
 
 export interface ClientBookingSummary {
   count: number;
@@ -45,16 +50,21 @@ export function useClientsForVenue(venueId: string | null | undefined) {
 
 /** Non-cancelled bookings aggregate for client cards (count + last event date). */
 export function useClientBookingSummaries(venueId: string | null | undefined) {
+  const { data: profile } = useMyProfile();
+  const agentKey = agentWorkloadCacheKey(profile);
+
   return useQuery({
-    queryKey: queryKeys.clientBookingSummaries(venueId ?? "__none__"),
+    queryKey: [...queryKeys.clientBookingSummaries(venueId ?? "__none__"), agentKey] as const,
     enabled: !!venueId,
     queryFn: async (): Promise<Record<string, ClientBookingSummary>> => {
       const supabase = createClient();
-      const response = await supabase
+      let q = supabase
         .from("bookings")
         .select("client_id, event_date")
         .eq("venue_id", venueId as string)
         .neq("status", "cancelled");
+      q = applyAgentWorkloadFilter(q, profile);
+      const response = await q;
       const rows = unwrapQuery(response, [], "client booking summaries");
       return aggregateClientBookingSummaries(rows);
     },

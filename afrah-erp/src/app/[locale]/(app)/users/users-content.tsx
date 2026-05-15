@@ -1,237 +1,201 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useTranslations, useLocale } from "next-intl";
-import {
-  Shield,
-  ShieldAlert,
-  ShieldCheck,
-  UserPlus,
-  Mail,
-  Copy,
-} from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Can } from "@/components/auth/can";
-import { useMyProfile } from "@/lib/auth/use-my-profile";
-import { hasPermission } from "@/lib/auth/my-profile";
-import { useVenueUsersList } from "@/lib/queries/venue-users";
+import { Card, CardContent } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
-import { toast } from "@/components/ui/toaster";
+import { can } from "@/lib/utils/permissions";
+import { useMyProfile } from "@/lib/auth/use-my-profile";
+import { useAgents, type AgentProfileRow } from "@/lib/queries/useUserManagement";
+import {
+  AgentStatusBadge,
+  CreateUserSheet,
+  DeactivateUserDialog,
+  EditAgentVenuesSheet,
+} from "@/components/user-management";
 
 export function UsersContent() {
   const t = useTranslations("users");
-  const tc = useTranslations("common");
   const locale = useLocale();
-  const { data: profile, isLoading } = useMyProfile();
-  const { data: venueUsers = [], isLoading: teamLoading } = useVenueUsersList();
-  const [inviteOpen, setInviteOpen] = useState(false);
+  const { data: profile, isLoading: profileLoading } = useMyProfile();
 
-  if (isLoading) {
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editVenuesAgent, setEditVenuesAgent] = useState<AgentProfileRow | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<AgentProfileRow | null>(null);
+
+  const isSuperAdmin = profile?.role === "super_admin";
+  const isOwner = profile?.role === "owner";
+  const canShowUserUi = isSuperAdmin || isOwner;
+
+  const agentsQuery = useAgents(
+    profile?.user_id ?? null,
+    isSuperAdmin ? { listAllAgents: true } : undefined
+  );
+
+  const agents = agentsQuery.data ?? [];
+  const callerVenues = useMemo(
+    () =>
+      (profile?.venues ?? []).map((v) => ({
+        id: v.id,
+        name_en: v.name_en,
+      })),
+    [profile?.venues]
+  );
+
+  const canCreate = profile ? can(profile.permissions, "user_management", "create") : false;
+  const canEdit = profile ? can(profile.permissions, "user_management", "edit") : false;
+
+  if (profileLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <p className="text-sm text-muted-foreground">{tc("loading")}</p>
+      <div className="flex min-h-[280px] items-center justify-center text-sm text-muted-foreground">
+        {t("loadingAgents")}
       </div>
     );
   }
 
-  if (!hasPermission(profile, "users.view")) {
+  if (!profile || !canShowUserUi) {
     return (
-      <Card className="max-w-md mx-auto mt-12">
-        <CardContent className="flex flex-col items-center text-center p-8">
-          <div className="rounded-2xl p-4 bg-red-100 text-red-600 mb-4">
-            <ShieldAlert className="h-8 w-8" />
-          </div>
-          <h2 className="text-xl font-bold mb-2">{t("accessDeniedTitle")}</h2>
-          <p className="text-sm text-muted-foreground">{t("accessDeniedDesc")}</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-3">
+        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+        <Card>
+          <CardContent className="py-8 text-sm text-muted-foreground">
+            {t("emptyAgents")}
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
-  const snippet = `INSERT INTO venue_users (venue_id, user_id, role)\nVALUES ('<venue_uuid>', '<user_uuid>', 'viewer');`;
-
-  async function copyUserId(id: string) {
-    try {
-      await navigator.clipboard.writeText(id);
-      toast({
-        variant: "success",
-        title: t("clipboardCopiedTitle"),
-      });
-    } catch {
-      toast({
-        variant: "destructive",
-        title: t("clipboardFailedTitle"),
-        description: id,
-      });
-    }
-  }
+  const currentVenueIdsForSheet =
+    editVenuesAgent?.user_venues?.map((v) => v.venue_id) ?? [];
 
   return (
-    <div className="space-y-5">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+          <h1 className="text-2xl font-bold tracking-tight">{t("agentsTitle")}</h1>
+          <p className="text-sm text-muted-foreground">{t("agentsSubtitle")}</p>
         </div>
-        <Can permission="users.create">
-          <Button type="button" className="gap-2" onClick={() => setInviteOpen(true)}>
-            <UserPlus className="h-4 w-4" />
-            {t("inviteButton")}
+        {canCreate && (
+          <Button className="gap-2" onClick={() => setCreateOpen(true)}>
+            <UserPlus className="h-4 w-4" aria-hidden />
+            {t("createUserButton")}
           </Button>
-        </Can>
+        )}
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            {t("youCardTitle")}
-          </CardTitle>
-          <CardDescription>{t("youCardDesc")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-start gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 text-primary font-bold text-lg">
-              {(profile?.full_name ?? profile?.email ?? "U")[0].toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-semibold">{profile?.full_name ?? "—"}</p>
-              <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                <Mail className="h-3 w-3" />
-                {profile?.email}
-              </p>
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                <Badge variant="info" className="text-xs">
-                  {profile?.role}
-                </Badge>
-                <Badge
-                  variant={profile?.status === "active" ? "success" : "secondary"}
-                  className="text-xs"
-                >
-                  {profile?.status}
-                </Badge>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-emerald-600" />
-            {t("permissionsCardTitle")}
-          </CardTitle>
-          <CardDescription>{t("yourPermissionsDesc")}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {profile?.permissions?.length ? (
-            <div className="flex flex-wrap gap-2">
-              {profile.permissions.map((p) => (
-                <Badge key={p} variant="outline" className="text-xs font-mono">
-                  {p}
-                </Badge>
-              ))}
-            </div>
+        <CardContent className="p-0">
+          {agentsQuery.isLoading ? (
+            <p className="p-6 text-sm text-muted-foreground">{t("loadingAgents")}</p>
+          ) : agents.length === 0 ? (
+            <p className="p-6 text-sm text-muted-foreground">{t("emptyAgents")}</p>
           ) : (
-            <p className="text-sm text-muted-foreground">{t("noPermissionsAssigned")}</p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40 text-left">
+                    <th className="px-4 py-3 font-medium">{t("colFullName")}</th>
+                    <th className="px-4 py-3 font-medium">{t("colEmail")}</th>
+                    <th className="px-4 py-3 font-medium">{t("colStatus")}</th>
+                    <th className="px-4 py-3 font-medium">{t("colVenues")}</th>
+                    <th className="px-4 py-3 font-medium">{t("colCreated")}</th>
+                    {canEdit && (
+                      <th className="px-4 py-3 font-medium text-right">{t("colActions")}</th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {agents.map((row) => (
+                    <tr key={row.id} className="border-b border-border last:border-0">
+                      <td className="px-4 py-3 font-medium">{row.full_name || "—"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{row.email}</td>
+                      <td className="px-4 py-3">
+                        <AgentStatusBadge status={row.status} />
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground max-w-[220px]">
+                        {row.user_venues
+                          ?.map((uv) => uv.venues?.name_en)
+                          .filter(Boolean)
+                          .join(", ") || "—"}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">
+                        {row.created_at
+                          ? formatDate(row.created_at, locale === "ar" ? "ar" : "en")
+                          : "—"}
+                      </td>
+                      {canEdit && (
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setEditVenuesAgent(row)}
+                            >
+                              {t("editVenues")}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDeactivateTarget(row)}
+                            >
+                              {String(row.status).toLowerCase() === "active"
+                                ? t("deactivateUser")
+                                : t("activateUser")}
+                            </Button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <div>
-            <CardTitle>{t("teamTitle")}</CardTitle>
-            <CardDescription>{t("teamDesc")}</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-xs text-muted-foreground">{t("noEmailNote")}</p>
-          {teamLoading ? (
-            <p className="text-sm text-muted-foreground py-8 text-center">{t("loadingTeam")}</p>
-          ) : venueUsers.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-8 text-center border border-dashed rounded-xl">
-              {t("emptyTeam")}
-            </p>
-          ) : (
-            <ul className="divide-y divide-border rounded-xl border">
-              {venueUsers.map((row) => {
-                const isYou = profile?.id === row.user_id;
-                return (
-                  <li key={row.id} className="flex flex-col sm:flex-row sm:items-center gap-2 p-4">
-                    <div className="flex-1 min-w-0 space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono text-xs break-all">{row.user_id}</span>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 shrink-0"
-                          aria-label={t("copyUserIdAria")}
-                          onClick={() => void copyUserId(row.user_id)}
-                        >
-                          <Copy className="h-3.5 w-3.5" />
-                        </Button>
-                        {isYou && (
-                          <Badge variant="secondary" className="text-[10px]">
-                            {t("youBadge")}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                        <Badge variant="outline">{row.role}</Badge>
-                        <span>
-                          {t("addedAt")}: {formatDate(row.created_at, locale)}
-                        </span>
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      <CreateUserSheet
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        callerRole={isSuperAdmin ? "super_admin" : "owner"}
+        callerVenues={callerVenues}
+      />
 
-      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("inviteHintTitle")}</DialogTitle>
-            <DialogDescription asChild>
-              <div className="space-y-3 text-sm">
-                <p>{t("inviteHintStep1")}</p>
-                <p>{t("inviteHintStep2")}</p>
-              </div>
-            </DialogDescription>
-          </DialogHeader>
-          <pre className="rounded-lg bg-muted p-3 text-xs overflow-x-auto font-mono">
-            {snippet}
-          </pre>
-          <p className="text-xs text-muted-foreground">{t("inviteHintFooter")}</p>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setInviteOpen(false)}>
-              {t("closeInvite")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EditAgentVenuesSheet
+        open={!!editVenuesAgent}
+        onOpenChange={(v) => {
+          if (!v) setEditVenuesAgent(null);
+        }}
+        agent={
+          editVenuesAgent
+            ? { id: editVenuesAgent.id, full_name: editVenuesAgent.full_name ?? "" }
+            : null
+        }
+        callerRole={isSuperAdmin ? "super_admin" : "owner"}
+        callerVenues={callerVenues}
+        currentVenueIds={currentVenueIdsForSheet}
+      />
+
+      <DeactivateUserDialog
+        open={!!deactivateTarget}
+        onOpenChange={(v) => {
+          if (!v) setDeactivateTarget(null);
+        }}
+        user={
+          deactivateTarget
+            ? {
+                id: deactivateTarget.id,
+                full_name: deactivateTarget.full_name ?? "",
+                status: deactivateTarget.status,
+              }
+            : null
+        }
+      />
     </div>
   );
 }

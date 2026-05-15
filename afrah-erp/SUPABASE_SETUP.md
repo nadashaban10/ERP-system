@@ -317,14 +317,11 @@ CREATE TABLE booking_edit_history (
   created_at           timestamptz NOT NULL DEFAULT now()
 );
 
--- ─── venue_users ──────────────────────────────────────────────────────────────
-CREATE TABLE venue_users (
-  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+-- ─── user_venues (agent ↔ venue assignments; role lives on profiles) ───────────
+CREATE TABLE user_venues (
+  user_id    uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   venue_id   uuid NOT NULL REFERENCES venues(id) ON DELETE CASCADE,
-  user_id    uuid NOT NULL REFERENCES auth.users(id),
-  role       user_role NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (venue_id, user_id)
+  PRIMARY KEY (user_id, venue_id)
 );
 ```
 
@@ -493,7 +490,7 @@ CREATE TRIGGER trg_inquiry_reminders_notify
 -- Helper function: get current user's venue_id
 CREATE OR REPLACE FUNCTION current_venue_id() RETURNS uuid
 LANGUAGE sql STABLE SECURITY DEFINER AS $$
-  SELECT venue_id FROM venue_users WHERE user_id = auth.uid() LIMIT 1;
+  SELECT venue_id FROM user_venues WHERE user_id = auth.uid() LIMIT 1;
 $$;
 
 -- Enable RLS on every table
@@ -509,7 +506,7 @@ ALTER TABLE inquiries            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE inquiry_reminders    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE booking_edit_history ENABLE ROW LEVEL SECURITY;
-ALTER TABLE venue_users          ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_venues          ENABLE ROW LEVEL SECURITY;
 
 -- Generic policies — venue isolation
 CREATE POLICY venues_select ON venues
@@ -546,8 +543,8 @@ CREATE POLICY hall_slots_isolation ON hall_slots
     EXISTS (SELECT 1 FROM halls h WHERE h.id = hall_id AND h.venue_id = current_venue_id())
   );
 
--- venue_users: users can only see their own venue's user list
-CREATE POLICY venue_users_select ON venue_users
+-- user_venues: users can only see their own venue's user list
+CREATE POLICY user_venues_select ON user_venues
   FOR SELECT USING (venue_id = current_venue_id());
 
 -- Notifications: users only see their own
@@ -573,7 +570,7 @@ DECLARE
   v_venue_id uuid;
   result jsonb;
 BEGIN
-  SELECT venue_id INTO v_venue_id FROM venue_users WHERE user_id = auth.uid() LIMIT 1;
+  SELECT venue_id INTO v_venue_id FROM user_venues WHERE user_id = auth.uid() LIMIT 1;
   IF v_venue_id IS NULL THEN
     RAISE EXCEPTION 'User has no venue assigned';
   END IF;
@@ -1197,12 +1194,12 @@ INSERT INTO venues (name_ar, name_en, type, address, city, phone_1)
   RETURNING id;
 -- Copy the returned UUID
 
--- Step 2: Create user via Auth → Users → Add user (in Supabase dashboard)
--- Or invite via email
+-- Step 2: Create the first user from the app (Users → Create user) using the deployed
+-- `create-user` Edge Function, or use the Supabase dashboard Auth UI if you prefer.
 
--- Step 3: Link user to venue
-INSERT INTO venue_users (venue_id, user_id, role)
-  VALUES ('<venue-uuid>', '<user-uuid>', 'owner');
+-- Step 3 (optional manual link): assign venue access if you created the user outside the app
+INSERT INTO user_venues (user_id, venue_id)
+  VALUES ('<user-uuid>', '<venue-uuid>');
 ```
 
 ---

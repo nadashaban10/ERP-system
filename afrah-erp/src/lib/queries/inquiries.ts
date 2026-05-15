@@ -1,6 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMyProfile } from "@/lib/auth/use-my-profile";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import type {
@@ -17,6 +18,10 @@ import {
   unwrapMutation,
   unwrapQuery,
 } from "@/lib/queries/helpers";
+import {
+  agentWorkloadCacheKey,
+  applyAgentWorkloadFilter,
+} from "@/lib/queries/agent-scope";
 import { queryKeys } from "@/lib/queries/keys";
 import { parseCreateBookingRpcResult } from "@/lib/queries/bookings";
 
@@ -41,8 +46,11 @@ export type InquiriesListFilters = {
 };
 
 export function useInquiriesList(filters: InquiriesListFilters) {
+  const { data: profile } = useMyProfile();
+  const agentKey = agentWorkloadCacheKey(profile);
+
   return useQuery({
-    queryKey: queryKeys.inquiries({ scope: "list", status: filters.status }),
+    queryKey: queryKeys.inquiries({ scope: "list", status: filters.status, agentScope: agentKey }),
     queryFn: async (): Promise<Inquiry[]> => {
       const supabase = createClient();
       let q = supabase
@@ -54,6 +62,8 @@ export function useInquiriesList(filters: InquiriesListFilters) {
         q = q.eq("status", filters.status as InquiryStatus);
       }
 
+      q = applyAgentWorkloadFilter(q, profile);
+
       const response = await q;
       const rows = unwrapQuery<InquiryJoinRow[]>(response, [], "inquiries list");
       return rows.map(normalizeInquiryJoinRow);
@@ -62,16 +72,20 @@ export function useInquiriesList(filters: InquiriesListFilters) {
 }
 
 export function useInquiryDetail(id: string | null | undefined) {
+  const { data: profile } = useMyProfile();
+  const agentKey = agentWorkloadCacheKey(profile);
+
   return useQuery({
-    queryKey: queryKeys.inquiry(id ?? "__none__"),
+    queryKey: [...queryKeys.inquiry(id ?? "__none__"), agentKey] as const,
     enabled: !!id,
     queryFn: async (): Promise<Inquiry | null> => {
       const supabase = createClient();
-      const response = await supabase
+      let q = supabase
         .from("inquiries")
         .select(INQUIRY_DETAIL_SELECT)
-        .eq("id", id as string)
-        .maybeSingle();
+        .eq("id", id as string);
+      q = applyAgentWorkloadFilter(q, profile);
+      const response = await q.maybeSingle();
       const row = unwrapQuery<InquiryJoinRow | null>(response, null, "inquiry detail");
       return row ? normalizeInquiryJoinRow(row) : null;
     },
@@ -174,6 +188,7 @@ export function useCreateInquiry() {
         last_attempt_at: null,
         booking_id: null,
         follow_up_date: null,
+        assigned_agent_id: null,
       };
       const response = await supabase.from("inquiries").insert(row).select().single();
       return unwrapMutation<Inquiry>(

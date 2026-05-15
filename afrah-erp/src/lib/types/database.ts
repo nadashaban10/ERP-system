@@ -86,6 +86,8 @@ export interface Venue {
   name_ar: string;
   name_en: string;
   type: VenueType;
+  /** When set, owner-scoped venue lists use this (multi-venue products). */
+  owner_user_id?: string | null;
   address: string;
   city: CityEnum;
   district: string | null;
@@ -172,6 +174,8 @@ export interface Booking {
   amount_paid: number;
   amount_outstanding: number;
   guest_count: number | null;
+  /** Agent workload scoping (see RLS + app filter for `role === 'agent'`). */
+  assigned_agent_id?: string | null;
   assigned_to: string | null;
   notes: string | null;
   hold_expires_at: string | null;
@@ -221,6 +225,8 @@ export interface Inquiry {
   notes: string | null;
   created_at: string;
   updated_at: string;
+  /** Agent workload scoping. */
+  assigned_agent_id?: string | null;
   // Joined
   client?: Client;
 }
@@ -265,13 +271,27 @@ export interface BookingEditHistory {
   created_at: string;
 }
 
-export interface VenueUser {
+/** Agent ↔ venue assignments (multi-venue agents). Role lives on `profiles`. */
+export interface UserVenue {
   id: string;
-  venue_id: string;
   user_id: string;
-  role: UserRole;
+  venue_id: string;
   created_at: string;
 }
+
+/** Public profile row for admin / owner management UIs. */
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string;
+  role: string;
+  status: string;
+  created_at?: string;
+}
+
+export type ProfileStatus = "active" | "inactive" | "suspended";
+
+export type SubscriptionPlan = "trial" | "starter" | "professional" | "enterprise";
 
 // ─── RPC Return Types ─────────────────────────────────────────────────────────
 
@@ -369,7 +389,18 @@ export interface Database {
       inquiry_reminders: { Row: Idx<InquiryReminder>; Insert: Idx<Omit<InquiryReminder, "id" | "created_at">>; Update: Idx<Partial<InquiryReminder>>; Relationships: Rels };
       notifications: { Row: Idx<Notification>; Insert: Idx<Omit<Notification, "id" | "created_at">>; Update: Idx<Partial<Notification>>; Relationships: Rels };
       booking_edit_history: { Row: Idx<BookingEditHistory>; Insert: Idx<Omit<BookingEditHistory, "id" | "created_at">>; Update: Idx<Partial<BookingEditHistory>>; Relationships: Rels };
-      venue_users: { Row: Idx<VenueUser>; Insert: Idx<Omit<VenueUser, "id" | "created_at">>; Update: Idx<Partial<VenueUser>>; Relationships: Rels };
+      profiles: {
+        Row: Idx<Profile>;
+        Insert: Idx<Partial<Profile>>;
+        Update: Idx<Partial<Profile>>;
+        Relationships: Rels;
+      };
+      user_venues: {
+        Row: Idx<UserVenue>;
+        Insert: Idx<Omit<UserVenue, "id" | "created_at">>;
+        Update: Idx<Partial<UserVenue>>;
+        Relationships: Rels;
+      };
     };
     // Supabase's GenericSchema requires Views; we have none yet.
     Views: Record<string, never>;
@@ -454,6 +485,22 @@ export interface Database {
           p_milestone?: string | null;
           p_proof_url?: string | null;
           p_notes?: string | null;
+        };
+        Returns: Json;
+      };
+      update_agent_venues: {
+        Args: { p_agent_id: string; p_venue_ids: string[] };
+        Returns: Json;
+      };
+      deactivate_user: {
+        Args: { p_user_id: string; p_reason?: string | null };
+        Returns: Json;
+      };
+      create_venue: {
+        Args: {
+          p_venue_data: Json;
+          p_owner_id?: string | null;
+          p_owner_role?: string | null;
         };
         Returns: Json;
       };

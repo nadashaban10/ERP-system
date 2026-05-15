@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Building2, Loader2 } from "lucide-react";
+import { useVenueSelection } from "@/lib/auth/venue-selection-context";
 import { useActiveHalls } from "@/lib/queries/halls";
 
 export function HallSelector() {
@@ -20,7 +21,8 @@ export function HallSelector() {
   const searchParams = useSearchParams();
   const currentHall = searchParams.get("hall") ?? "all";
 
-  const { data: halls = [], isPending } = useActiveHalls();
+  const { selectedVenueId } = useVenueSelection();
+  const { data: halls = [], isPending } = useActiveHalls(selectedVenueId);
 
   function handleChange(value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -36,7 +38,7 @@ export function HallSelector() {
     <Select
       value={currentHall}
       onValueChange={handleChange}
-      disabled={isPending}
+      disabled={isPending || !selectedVenueId}
     >
       <SelectTrigger className="w-[180px] gap-2">
         <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />

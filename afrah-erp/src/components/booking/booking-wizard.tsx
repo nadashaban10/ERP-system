@@ -41,7 +41,10 @@ import type {
   Package as PackageType,
   ShiftEnum,
 } from "@/lib/types/database";
+import { useVenueSelection } from "@/lib/auth/venue-selection-context";
+import { useMyProfile } from "@/lib/auth/use-my-profile";
 import { useVenue } from "@/lib/queries/venue";
+import { useAssignableAgents } from "@/lib/queries/assignable-agents";
 import { useClientsForVenue } from "@/lib/queries/clients";
 import { useActiveHalls } from "@/lib/queries/halls";
 import { usePackages } from "@/lib/queries/packages";
@@ -77,7 +80,8 @@ interface WizardData {
   // Step 4: Confirm
   status: "on_hold" | "confirmed";
   holdExpiresAt: string;
-  assignedTo: string;
+  /** Agent profile id (owner selects from list; agents default to self). */
+  assignedAgentId: string;
   notes: string;
   source: string;
 }
@@ -129,22 +133,33 @@ export function BookingWizard({
     totalAmount: "",
     status: "confirmed",
     holdExpiresAt: "",
-    assignedTo: "",
+    assignedAgentId: "",
     notes: "",
     source: "phone",
   });
 
   const venueQuery = useVenue();
   const venueId = venueQuery.data?.id;
-  const { data: halls = [] } = useActiveHalls();
+  const { selectedVenueId } = useVenueSelection();
+  const { data: halls = [] } = useActiveHalls(selectedVenueId ?? venueId);
   const packagesQuery = usePackages();
   const packagesList = (packagesQuery.data ?? []).filter((p) => p.is_active);
 
   const clientsQuery = useClientsForVenue(open ? venueId : undefined);
   const allClients = clientsQuery.data ?? [];
 
+  const { data: profile } = useMyProfile();
+  const { data: assignableAgents = [] } = useAssignableAgents();
+
   const createBookingMutation = useCreateBooking();
   const convertInquiryMutation = useConvertInquiryToBooking();
+
+  useEffect(() => {
+    if (!open || !profile) return;
+    if (profile.role === "agent") {
+      setData((d) => ({ ...d, assignedAgentId: profile.user_id }));
+    }
+  }, [open, profile]);
 
   const eventTypeIdQuery = usePrimaryShiftBasedEventTypeIdForHall(
     data.hallId || undefined,
@@ -271,6 +286,23 @@ export function BookingWizard({
 
     const totalAmt = parseFloat(data.totalAmount);
     const gc = parseInt(data.guestCount, 10);
+
+    const resolvedAgentId =
+      profile?.role === "agent"
+        ? profile.user_id
+        : data.assignedAgentId.trim() || null;
+
+    let assignedDisplayName: string | null = null;
+    if (resolvedAgentId) {
+      const row = assignableAgents.find((a) => a.id === resolvedAgentId);
+      if (row?.full_name?.trim()) assignedDisplayName = row.full_name.trim();
+      else if (row?.email) assignedDisplayName = row.email;
+      else if (profile?.user_id === resolvedAgentId) {
+        assignedDisplayName =
+          profile.full_name?.trim() || profile.email || null;
+      }
+    }
+
     const bookingJson = buildCreateBookingJson({
       hallId: data.hallId,
       eventTypeId,
@@ -286,7 +318,8 @@ export function BookingWizard({
       guestCount: Number.isNaN(gc) ? null : gc,
       status: data.status as BookingStatus,
       source: data.source as BookingSource,
-      assignedTo: data.assignedTo,
+      assignedAgentId: resolvedAgentId,
+      assignedDisplayName,
       notes: data.notes,
       holdExpiresAt: data.status === "on_hold" ? data.holdExpiresAt || null : null,
     });
@@ -343,7 +376,7 @@ export function BookingWizard({
       totalAmount: "",
       status: "confirmed",
       holdExpiresAt: "",
-      assignedTo: "",
+      assignedAgentId: "",
       notes: "",
       source: "phone",
     });
@@ -772,12 +805,33 @@ export function BookingWizard({
               )}
 
               <div className="space-y-1.5">
-                <Label>Assigned To</Label>
-                <Input
-                  value={data.assignedTo}
-                  onChange={(e) => update({ assignedTo: e.target.value })}
-                  placeholder="Staff member name"
-                />
+                <Label>{t("assignedTo")}</Label>
+                {profile?.role === "agent" ? (
+                  <p className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm">
+                    {profile.full_name?.trim() || profile.email}
+                  </p>
+                ) : (
+                  <Select
+                    value={data.assignedAgentId || "__none__"}
+                    onValueChange={(v) =>
+                      update({
+                        assignedAgentId: v === "__none__" ? "" : v,
+                      })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={t("assignedTo")} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Unassigned</SelectItem>
+                      {assignableAgents.map((a) => (
+                        <SelectItem key={a.id} value={a.id}>
+                          {a.full_name?.trim() || a.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
               <div className="space-y-1.5">

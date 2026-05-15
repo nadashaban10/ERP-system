@@ -13,7 +13,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, PlusCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { HallSelector } from "@/components/shared/hall-selector";
 import { BookingWizard } from "@/components/booking/booking-wizard";
 import {
   useCalendarBookings,
@@ -131,7 +130,6 @@ export function CalendarContent() {
           <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
         </div>
         <div className="flex items-center gap-2">
-          <HallSelector />
           <Button onClick={() => setWizardOpen(true)} className="gap-2">
             <PlusCircle className="h-4 w-4" />
             {t("newBooking")}

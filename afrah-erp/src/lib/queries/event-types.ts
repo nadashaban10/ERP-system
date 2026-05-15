@@ -41,7 +41,9 @@ export function useCreateEventType() {
       return unwrapMutation<EventRecordType>(response, "create event type");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.halls });
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "halls",
+      });
     },
   });
 }
@@ -66,7 +68,9 @@ export function useUpdateEventType() {
       return unwrapMutation<EventRecordType>(response, "update event type");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.halls });
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "halls",
+      });
     },
   });
 }
@@ -84,7 +88,9 @@ export function useDeleteEventType() {
       return id;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.halls });
+      queryClient.invalidateQueries({
+        predicate: (q) => Array.isArray(q.queryKey) && q.queryKey[0] === "halls",
+      });
     },
   });
 }

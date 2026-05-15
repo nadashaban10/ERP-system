@@ -1,10 +1,15 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useMyProfile } from "@/lib/auth/use-my-profile";
 import type { BookingStatus, Inquiry, ShiftEnum } from "@/lib/types/database";
 import { createClient } from "@/lib/supabase/client";
 import { queryKeys } from "@/lib/queries/keys";
 import { unwrapQuery } from "@/lib/queries/helpers";
+import {
+  agentWorkloadCacheKey,
+  applyAgentWorkloadFilter,
+} from "@/lib/queries/agent-scope";
 
 /** Normalized shape consumed by dashboard UI after parsing `get_dashboard_summary` JSON. */
 export interface DashboardTodayBooking {
@@ -134,8 +139,11 @@ export interface DashboardRecentBooking {
 }
 
 export function useDashboardRecentBookings(hallId: string | null) {
+  const { data: profile } = useMyProfile();
+  const agentKey = agentWorkloadCacheKey(profile);
+
   return useQuery({
-    queryKey: [...queryKeys.bookings({ scope: "dashboard-recent", hallId }), hallId] as const,
+    queryKey: [...queryKeys.bookings({ scope: "dashboard-recent", hallId }), hallId, agentKey] as const,
     queryFn: async (): Promise<DashboardRecentBooking[]> => {
       const supabase = createClient();
       let q = supabase
@@ -150,6 +158,8 @@ export function useDashboardRecentBookings(hallId: string | null) {
       if (hallId) {
         q = q.eq("hall_id", hallId);
       }
+
+      q = applyAgentWorkloadFilter(q, profile);
 
       const response = await q;
       return unwrapQuery(response, [], "dashboard recent bookings");
@@ -175,12 +185,15 @@ function todayUtcDateString(): string {
 
 export function useDashboardOverdueInquiries(enabled: boolean) {
   const today = todayUtcDateString();
+  const { data: profile } = useMyProfile();
+  const agentKey = agentWorkloadCacheKey(profile);
+
   return useQuery({
-    queryKey: [...queryKeys.inquiries({ scope: "dashboard-overdue", today }), enabled] as const,
+    queryKey: [...queryKeys.inquiries({ scope: "dashboard-overdue", today }), enabled, agentKey] as const,
     enabled,
     queryFn: async (): Promise<DashboardOverdueInquiryRow[]> => {
       const supabase = createClient();
-      const response = await supabase
+      let q = supabase
         .from("inquiries")
         .select(
           "id, follow_up_date, no_response_count, status, clients(name)"
@@ -189,6 +202,10 @@ export function useDashboardOverdueInquiries(enabled: boolean) {
         .not("status", "in", '("converted","cancelled")')
         .order("follow_up_date", { ascending: true })
         .limit(4);
+
+      q = applyAgentWorkloadFilter(q, profile);
+
+      const response = await q;
 
       return unwrapQuery(response, [], "dashboard overdue inquiries");
     },

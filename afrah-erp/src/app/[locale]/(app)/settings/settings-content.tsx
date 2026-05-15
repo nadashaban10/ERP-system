@@ -108,7 +108,8 @@ export function SettingsContent() {
 
   // ─── Data ───────────────────────────────────────────────────────────────────
   const venueQuery = useVenue();
-  const hallsQuery = useHalls();
+  const venueIdForQueries = venueQuery.data?.id;
+  const hallsQuery = useHalls(venueIdForQueries);
   const packagesQuery = usePackages();
 
   const updateVenue = useUpdateVenue();
@@ -182,6 +183,7 @@ export function SettingsContent() {
     try {
       await updateHall.mutateAsync({
         id: hall.id,
+        venueId: hall.venue_id,
         changes: { is_active: next },
       });
     } catch (error) {
@@ -192,10 +194,13 @@ export function SettingsContent() {
   async function handleConfirmDeleteHall() {
     if (!pendingHallDelete) return;
     try {
-      await deleteHall.mutateAsync(pendingHallDelete.id);
+      await deleteHall.mutateAsync({
+        id: pendingHallDelete.id,
+        venueId: pendingHallDelete.venue_id,
+      });
       toast({ variant: "success", title: t("hallDeleted") });
-    } catch (error) {
-      showMutationError(error, "Delete failed");
+    } catch {
+      /* useDeleteHall onError toast */
     } finally {
       setPendingHallDelete(null);
     }
@@ -217,8 +222,8 @@ export function SettingsContent() {
     try {
       await deletePackage.mutateAsync(pendingPackageDelete.id);
       toast({ variant: "success", title: t("packageDeleted") });
-    } catch (error) {
-      showMutationError(error, "Delete failed");
+    } catch {
+      /* useDeletePackage onError toast */
     } finally {
       setPendingPackageDelete(null);
     }

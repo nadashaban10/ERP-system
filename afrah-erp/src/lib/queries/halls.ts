@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabase/client";
 import type { EventRecordType, Hall } from "@/lib/types/database";
 import { queryKeys } from "@/lib/queries/keys";
-import { unwrapMutation, unwrapQuery } from "@/lib/queries/helpers";
+import { showMutationError, unwrapMutation, unwrapQuery } from "@/lib/queries/helpers";
 
 /** A hall row joined with its event types — what we render in settings. */
 export type HallWithEventTypes = Hall & {
@@ -12,20 +12,24 @@ export type HallWithEventTypes = Hall & {
 };
 
 /**
- * List all halls in the user's venue (tenant scoped via RLS).
- * Includes event types so the settings page can render them inline.
+ * Halls for a specific venue. Pass the active `selectedVenueId` from context.
  */
-export function useHalls() {
+export function useHalls(venueId: string | null | undefined) {
   return useQuery({
-    queryKey: queryKeys.halls,
+    queryKey: [...queryKeys.hallsForVenue(venueId ?? "__none__"), "withEventTypes"] as const,
+    enabled: !!venueId,
     queryFn: async (): Promise<HallWithEventTypes[]> => {
       const supabase = createClient();
       const response = await supabase
         .from("halls")
         .select("*, event_record_types(*)")
+        .eq("venue_id", venueId as string)
         .order("name");
       return unwrapQuery<HallWithEventTypes[]>(
-        response as unknown as { data: HallWithEventTypes[] | null; error: typeof response.error },
+        response as unknown as {
+          data: HallWithEventTypes[] | null;
+          error: typeof response.error;
+        },
         [],
         "load halls"
       );
@@ -34,19 +38,18 @@ export function useHalls() {
 }
 
 /**
- * Just the active halls with id+name — used by selectors (dashboard topbar,
- * booking wizard, calendar filter). Cached separately so toggling a hall's
- * "active" flag in settings invalidates only this small list, not the full
- * halls-with-event-types payload.
+ * Active halls with id+name for selectors — filtered by **selected venue**.
  */
-export function useActiveHalls() {
+export function useActiveHalls(venueId: string | null | undefined) {
   return useQuery({
-    queryKey: [...queryKeys.halls, "active"] as const,
+    queryKey: [...queryKeys.hallsForVenue(venueId ?? "__none__"), "active"] as const,
+    enabled: !!venueId,
     queryFn: async (): Promise<Pick<Hall, "id" | "name" | "is_active">[]> => {
       const supabase = createClient();
       const response = await supabase
         .from("halls")
         .select("id, name, is_active")
+        .eq("venue_id", venueId as string)
         .eq("is_active", true)
         .order("name");
       return unwrapQuery(response, [], "load active halls");
@@ -81,14 +84,15 @@ export function useCreateHall() {
         .single();
       return unwrapMutation<Hall>(response, "create hall");
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.halls });
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.hallsForVenue(v.venue_id) });
     },
   });
 }
 
 export type UpdateHallInput = {
   id: string;
+  venueId: string;
   changes: Partial<
     Pick<Hall, "name" | "capacity_min" | "capacity_max" | "amenities" | "is_active">
   >;
@@ -107,8 +111,8 @@ export function useUpdateHall() {
         .single();
       return unwrapMutation<Hall>(response, "update hall");
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.halls });
+    onSuccess: (_, v) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.hallsForVenue(v.venueId) });
     },
   });
 }
@@ -116,14 +120,21 @@ export function useUpdateHall() {
 export function useDeleteHall() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    /** Same as REST: `DELETE /halls?id=eq.{id}` (RLS applies). */
+    mutationFn: async (args: { id: string; venueId: string }) => {
       const supabase = createClient();
-      const { error } = await supabase.from("halls").delete().eq("id", id);
+      const { error } = await supabase.from("halls").delete().eq("id", args.id);
       if (error) throw new Error(`delete hall: ${error.message}`);
-      return id;
+      return args;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.halls });
+    onSuccess: ({ id: deletedId, venueId }) => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.hallsForVenue(venueId) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.eventTypes(deletedId) });
+      queryClient.invalidateQueries({ queryKey: ["bookings"] });
+      queryClient.invalidateQueries({ queryKey: ["calendar"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.clientsRoot });
     },
+    onError: (e) => showMutationError(e),
   });
 }
