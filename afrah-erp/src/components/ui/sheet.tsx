@@ -41,7 +41,8 @@ const SheetContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed z-[110] gap-4 bg-background shadow-xl transition ease-in-out",
+        /* One step above SheetOverlay (110) so panel always stacks on top inside the portal */
+        "fixed z-[111] gap-4 bg-background shadow-xl transition ease-in-out",
         "data-[state=closed]:duration-300 data-[state=open]:duration-500",
         "data-[state=open]:animate-in data-[state=closed]:animate-out",
         side === "right" && [

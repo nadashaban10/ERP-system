@@ -17,7 +17,7 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn(
-      /* Below content so centered panel always receives clicks (same z-50 as content was unreliable in some stacks). */
+      /* Overlay above page chrome; keep below portaled popovers (Select/Popover/Dropdown ~ z-200). */
       "fixed inset-0 z-[100] bg-black/60 backdrop-blur-md",
       "data-[state=open]:animate-in data-[state=closed]:animate-out",
       "data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",

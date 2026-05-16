@@ -11,7 +11,7 @@ import { toast } from "@/components/ui/toaster";
  *  42P01 — undefined_table          (table doesn't exist)
  *  42883 — undefined_function       (RPC doesn't exist)
  *  42501 — insufficient_privilege   (RLS not yet configured for this user)
- *  PGRST116 — single() returned 0 rows (often a missing seed row)
+ *  PGRST116 — single() returned 0 rows
  */
 const SOFT_ERROR_CODES = new Set(["42P01", "42883", "42501", "PGRST116"]);
 

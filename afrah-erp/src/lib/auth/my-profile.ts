@@ -63,12 +63,12 @@ function parseDotPermission(dot: string): { module: string; action: string } | n
 }
 
 /**
- * `get_my_profile` uses module names like `user_management` and `venue_settings`.
- * The UI / nav use shorter names (`users`, `venues`) — try every alias for a match.
+ * `get_my_profile` may use `venue_settings` or `venues` (and similarly for users).
+ * Prefer the module name the API actually returns (`venues` first) so nav matches live payloads.
  */
 const PERMISSION_MODULE_ALIASES: Record<string, readonly string[]> = {
-  users: ["user_management", "users"],
-  venues: ["venue_settings", "venues"],
+  users: ["users", "user_management"],
+  venues: ["venues", "venue_settings"],
 };
 
 function moduleKeysForUiDotModule(uiModule: string): readonly string[] {
@@ -82,6 +82,7 @@ export function hasPermission(
   const parsed = parseDotPermission(permission);
   if (!parsed) return false;
   const perms = profile?.permissions;
+  if (!perms || typeof perms !== "object") return false;
   for (const mod of moduleKeysForUiDotModule(parsed.module)) {
     if (can(perms, mod, parsed.action)) return true;
   }

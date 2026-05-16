@@ -193,7 +193,7 @@ Ask Claude for:
 1. **Idempotent SQL migration** (`if not exists`, safe `drop policy if exists` + recreate where needed)
 2. Create/fix `get_my_profile()` RPC to return the frontend shape above
 3. Ensure RLS policies satisfy module 1 reads/writes
-4. Optional seed for one owner user mapped in `user_venues` (dev only)
+4. Optional local QA: assign one owner user via `user_venues` mapping
 5. A short post-migration verification script with expected results
 
 ---

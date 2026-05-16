@@ -4,12 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { PostgrestError } from "@supabase/supabase-js";
 import { toast } from "@/components/ui/toaster";
 import { createClient } from "@/lib/supabase/client";
-import { invokeCreateUser, type CreateUserBody } from "@/lib/supabase/create-user";
 import { unwrapMutation, unwrapQuery } from "@/lib/queries/helpers";
 import { queryKeys } from "@/lib/queries/keys";
 import type { Profile } from "@/lib/types/database";
 
-export type OwnerOption = Pick<Profile, "id" | "full_name" | "email">;
+export type OwnerOption = Pick<Profile, "id" | "full_name" | "email" | "status">;
 
 export type AgentProfileRow = {
   id: string;
@@ -64,7 +63,7 @@ export function useAgents(
   });
 }
 
-/** Active owners — super-admin workflows (create user, assign owner, etc.). */
+/** Active owners — super-admin workflows (e.g. assign owner). */
 export function useOwnersList(enabled = true) {
   return useQuery({
     queryKey: queryKeys.ownersList,
@@ -82,58 +81,6 @@ export function useOwnersList(enabled = true) {
         [],
         "owners list"
       );
-    },
-  });
-}
-
-export function useVenuesByOwner(ownerId: string | null) {
-  return useQuery({
-    queryKey: ["venues-by-owner", ownerId] as const,
-    queryFn: async () => {
-      const supabase = createClient();
-      const response = await supabase
-        .from("venues")
-        .select("id, name_en, name_ar")
-        .eq("owner_user_id", ownerId as string)
-        .order("name_en", { ascending: true });
-      return unwrapQuery<
-        { id: string; name_en: string; name_ar: string | null }[]
-      >(
-        response as {
-          data: { id: string; name_en: string; name_ar: string | null }[] | null;
-          error: PostgrestError | null;
-        },
-        [],
-        "venues by owner"
-      );
-    },
-    enabled: !!ownerId,
-  });
-}
-
-export function useCreateUser() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (body: CreateUserBody) => {
-      const supabase = createClient();
-      return invokeCreateUser(supabase, body);
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["agents"] });
-      queryClient.invalidateQueries({ queryKey: ["owners"] });
-      queryClient.invalidateQueries({ queryKey: queryKeys.userVenuesTeamList });
-      toast({
-        variant: "success",
-        title: "User created successfully",
-        description: data.message,
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Failed to create user",
-        description: error.message,
-        variant: "destructive",
-      });
     },
   });
 }
@@ -225,5 +172,3 @@ export function useReactivateUser() {
     },
   });
 }
-
-export type { CreateUserBody } from "@/lib/supabase/create-user";

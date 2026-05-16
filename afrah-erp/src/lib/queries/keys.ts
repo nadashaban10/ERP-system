@@ -75,6 +75,9 @@ export const queryKeys = {
   /** Agents eligible for booking assignment (owner / super_admin UI). */
   assignableAgents: (scopeKey: string) =>
     ["assignableAgents", scopeKey] as const,
+  /** Agents linked to a venue + owner scope (inquiry / optional UIs). */
+  assignableAgentsForVenue: (scopeKey: string) =>
+    ["assignableAgents", "venue", scopeKey] as const,
 
   // Module 10 — Super admin
   platformDashboard: ["platformDashboard"] as const,

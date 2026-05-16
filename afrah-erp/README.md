@@ -123,7 +123,6 @@ src/
 ├── lib/
 │   ├── supabase/            Client + Server helpers
 │   ├── types/database.ts    Full DB type definitions
-│   ├── mock-data.ts         Dev mock data
 │   └── utils.ts             Formatting utilities
 └── i18n/
     ├── routing.ts
@@ -133,35 +132,6 @@ src/
 
 ---
 
-## Demo Accounts
+## Authentication
 
-All demo accounts share the same password: **`Admin1234`**
-
-> ⚠️ **For development only.** Rotate or remove these accounts before going to production.
-
-### Super Admins
-Full access to every venue and every feature.
-
-| Email | Role | Scope |
-|-------|------|-------|
-| `ammar260302@gmail.com` | `super_admin` | All venues |
-| `nadashaban10@erp.com` | `super_admin` | All venues |
-| `nadashapann@gmail.com` | `super_admin` | All venues |
-
-### Venue Owners
-Full access to the venues they own.
-
-| Email | Role | Venues |
-|-------|------|--------|
-| `owner.cairo@afrah.io` | `owner` | Crystal Hall + Nile Gardens |
-| `owner.alex@afrah.io` | `owner` | Royal Ballroom |
-
-### Agents
-Limited to the venues they're assigned to.
-
-| Email | Role | Venues |
-|-------|------|--------|
-| `agent1.cairo@afrah.io` | `agent` | Crystal Hall only |
-| `agent2.cairo@afrah.io` | `agent` | Crystal Hall + Nile Gardens |
-| `agent1.nile@afrah.io` | `agent` | Nile Gardens only |
-| `agent1.alex@afrah.io` | `agent` | Royal Ballroom only |
+Users and roles are managed in your Supabase project (Auth + `profiles` / RLS). Create real accounts there; do not rely on hardcoded credentials in the repository.

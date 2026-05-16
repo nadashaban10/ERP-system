@@ -64,6 +64,7 @@ import { showMutationError } from "@/lib/queries/helpers";
 import { HallFormDialog } from "@/components/settings/hall-form-dialog";
 import { PackageFormDialog } from "@/components/settings/package-form-dialog";
 import { EventTypesManager } from "@/components/settings/event-types-manager";
+import { CreateVenueDialog } from "@/features/venues";
 import type { CityEnum, Package, Venue, VenueType } from "@/lib/types/database";
 
 type VenueFormShape = Pick<
@@ -105,6 +106,7 @@ export function SettingsContent() {
   const canEditVenue = hasPermission(profile, "venues.edit");
   const canViewVenue = hasPermission(profile, "venues.view");
   const canManageBilling = hasPermission(profile, "billing.manage");
+  const canCreateVenue = hasPermission(profile, "venues.create");
 
   // ─── Data ───────────────────────────────────────────────────────────────────
   const venueQuery = useVenue();
@@ -154,6 +156,7 @@ export function SettingsContent() {
     useState<HallWithEventTypes | null>(null);
   const [pendingPackageDelete, setPendingPackageDelete] =
     useState<Package | null>(null);
+  const [createVenueOpen, setCreateVenueOpen] = useState(false);
 
   // ─── Handlers ───────────────────────────────────────────────────────────────
   async function handleSaveVenue() {
@@ -236,10 +239,27 @@ export function SettingsContent() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
-        <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        {canCreateVenue && (
+          <Button
+            type="button"
+            variant="outline"
+            className="shrink-0 gap-2 self-start"
+            onClick={() => setCreateVenueOpen(true)}
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            {t("createVenueButton")}
+          </Button>
+        )}
       </div>
+
+      {canCreateVenue && (
+        <CreateVenueDialog open={createVenueOpen} onOpenChange={setCreateVenueOpen} />
+      )}
 
       {venueError && (
         <Card className="border-destructive/40 bg-red-50">

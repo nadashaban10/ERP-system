@@ -32,7 +32,7 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { data: profile } = useMyProfile();
+  const { data: profile, isLoading: profileLoading } = useMyProfile();
 
   async function logout() {
     const supabase = createClient();
@@ -49,7 +49,11 @@ export function Topbar({ onMenuToggle }: TopbarProps) {
   }
 
   const displayName = profile?.full_name ?? profile?.email ?? "User";
-  const canViewSettings = hasPermission(profile, "venues.view") || hasPermission(profile, "users.view") || hasPermission(profile, "billing.manage");
+  const canViewSettings =
+    profileLoading ||
+    hasPermission(profile, "venues.view") ||
+    hasPermission(profile, "users.view") ||
+    hasPermission(profile, "billing.manage");
 
   return (
     <header className="sticky top-0 z-40 flex h-14 items-center gap-3 border-b border-border/60 bg-background/90 backdrop-blur-xl px-4 lg:px-6 shadow-[0_1px_8px_oklch(0_0_0/0.06)]">

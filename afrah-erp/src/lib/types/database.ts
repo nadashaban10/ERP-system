@@ -79,6 +79,8 @@ export type EditType =
   | "notes"
   | "combined";
 
+export type SubscriptionPlan = "trial" | "starter" | "professional" | "enterprise";
+
 // ─── Table Row Types ───────────────────────────────────────────────────────────
 
 export interface Venue {
@@ -101,6 +103,9 @@ export interface Venue {
   marketplace_active: boolean;
   edit_cutoff_days: number;
   edit_cutoff_override: boolean;
+  /** Billing / SaaS metadata (added via migration when missing). */
+  subscription_plan?: SubscriptionPlan | string | null;
+  trial_ends_at?: string | null;
   created_at: string;
 }
 
@@ -290,8 +295,6 @@ export interface Profile {
 }
 
 export type ProfileStatus = "active" | "inactive" | "suspended";
-
-export type SubscriptionPlan = "trial" | "starter" | "professional" | "enterprise";
 
 // ─── RPC Return Types ─────────────────────────────────────────────────────────
 
@@ -497,11 +500,11 @@ export interface Database {
         Returns: Json;
       };
       create_venue: {
-        Args: {
-          p_venue_data: Json;
-          p_owner_id?: string | null;
-          p_owner_role?: string | null;
-        };
+        Args: { p_venue_data: Json; p_owner_id?: string | null };
+        Returns: Json;
+      };
+      link_user_to_venue: {
+        Args: { p_user_id: string; p_venue_id: string };
         Returns: Json;
       };
     };

@@ -1307,7 +1307,7 @@ This replaces the hand-written types I provided with auto-generated ones that al
 
 ## 15. Wire Frontend to Supabase
 
-Now replace the mock-data calls in the components with real Supabase queries.
+Ensure components load data from Supabase (queries / RPCs), not from static fixtures in the repo.
 
 ### 15.1 Login form (`src/app/[locale]/(auth)/login/login-form.tsx`)
 
@@ -1370,7 +1370,7 @@ const { data: summary, isLoading } = useQuery({
   },
 });
 
-// Replace `MOCK_DASHBOARD` with `summary`
+// Use `summary` from the query result for the dashboard UI
 ```
 
 ### 15.4 Replace bookings list
@@ -1473,12 +1473,9 @@ useEffect(() => {
 }, []);
 ```
 
-### 15.7 Mock-data files to delete
+### 15.7 Fixtures
 
-Once everything is wired up, you can delete:
-- `src/lib/mock-data.ts`
-
-And remove all `MOCK_*` imports across the codebase.
+The codebase does not ship a `mock-data.ts` layer; dashboard, bookings, and related screens should read exclusively from Supabase.
 
 ---
 

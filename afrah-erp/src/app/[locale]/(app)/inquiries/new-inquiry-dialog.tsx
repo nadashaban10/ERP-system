@@ -31,6 +31,10 @@ import {
   type NewClientInput,
 } from "@/lib/queries/clients";
 import { useCreateInquiry } from "@/lib/queries/inquiries";
+import { useMyProfile } from "@/lib/auth/use-my-profile";
+import { useVenueAssignableAgents } from "@/lib/queries/assignable-agents";
+
+const ASSIGN_AGENT_NONE = "__none__";
 
 interface NewInquiryDialogProps {
   open: boolean;
@@ -44,11 +48,22 @@ export function NewInquiryDialog({ open, onClose }: NewInquiryDialogProps) {
   const tNd = useTranslations("inquiries.newDialog");
   const tc = useTranslations("common");
 
+  const { data: profile } = useMyProfile();
+
   const venueQuery = useVenue();
   const venueId = venueQuery.data?.id ?? null;
+  const venueRow = venueQuery.data;
 
   const clientsQuery = useClientsForVenue(open ? venueId : undefined);
   const clients = clientsQuery.data ?? [];
+
+  const { data: venueAgents = [] } = useVenueAssignableAgents(
+    open && venueId ? venueId : undefined,
+    {
+      enabled: open && !!venueId,
+      venueOwnerUserId: venueRow?.owner_user_id ?? null,
+    }
+  );
 
   const createClient = useCreateClient();
   const createInquiry = useCreateInquiry();
@@ -62,6 +77,9 @@ export function NewInquiryDialog({ open, onClose }: NewInquiryDialogProps) {
   const [packageInterest, setPackageInterest] = useState("");
   const [source, setSource] = useState<InquirySource>("phone");
   const [notes, setNotes] = useState("");
+  const [assignedAgentId, setAssignedAgentId] = useState("");
+
+  const showAgentPicker = !!profile && profile.role !== "agent";
 
   useEffect(() => {
     if (!open) return;
@@ -74,6 +92,7 @@ export function NewInquiryDialog({ open, onClose }: NewInquiryDialogProps) {
     setPackageInterest("");
     setSource("phone");
     setNotes("");
+    setAssignedAgentId("");
   }, [open]);
 
   const busy =
@@ -82,10 +101,26 @@ export function NewInquiryDialog({ open, onClose }: NewInquiryDialogProps) {
     clientsQuery.isPending;
 
   async function handleSubmit() {
+    if (!profile) {
+      toast({
+        variant: "destructive",
+        title: tNd("submitBlockedProfile"),
+      });
+      return;
+    }
+
     if (!venueId) {
       toast({
         variant: "destructive",
         title: tNd("noVenue"),
+      });
+      return;
+    }
+
+    if (profile.role === "agent" && !profile.user_id) {
+      toast({
+        variant: "destructive",
+        title: tNd("submitBlockedAgentId"),
       });
       return;
     }
@@ -110,15 +145,35 @@ export function NewInquiryDialog({ open, onClose }: NewInquiryDialogProps) {
 
       const gc = parseInt(guestCount, 10);
 
-      await createInquiry.mutateAsync({
+      const guest_count = Number.isNaN(gc) ? null : gc;
+      const formAssignedAgentId =
+        profile.role !== "agent" ? assignedAgentId.trim() || null : null;
+
+      const values = {
         venue_id: venueId,
         client_id: resolvedClientId,
         desired_date: desiredDate || null,
-        guest_count: Number.isNaN(gc) ? null : gc,
+        guest_count,
         package_interest: packageInterest.trim() || null,
         source,
         notes: notes.trim() || null,
-      });
+        assigned_agent_id: formAssignedAgentId,
+      };
+
+      const assignedAgentIdFinal =
+        profile.role === "agent" ? profile.user_id : values.assigned_agent_id || null;
+
+      const payload = {
+        ...values,
+        assigned_agent_id: assignedAgentIdFinal,
+      };
+
+      console.log("current profile", profile);
+      console.log("selected venue_id", venueId);
+      console.log("form assigned_agent_id", values.assigned_agent_id);
+      console.log("final inquiry payload", payload);
+
+      await createInquiry.mutateAsync(payload);
 
       toast({ variant: "success", title: t("createdToast") });
       onClose();
@@ -197,6 +252,33 @@ export function NewInquiryDialog({ open, onClose }: NewInquiryDialogProps) {
                 </div>
               </TabsContent>
             </Tabs>
+
+            {showAgentPicker && (
+              <div className="space-y-1.5">
+                <Label>{tNd("assignAgentLabel")}</Label>
+                <Select
+                  value={assignedAgentId ? assignedAgentId : ASSIGN_AGENT_NONE}
+                  onValueChange={(v) =>
+                    setAssignedAgentId(v === ASSIGN_AGENT_NONE ? "" : v)
+                  }
+                  disabled={busy}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={tNd("assignAgentPlaceholder")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ASSIGN_AGENT_NONE}>
+                      {tNd("assignAgentNone")}
+                    </SelectItem>
+                    {venueAgents.map((a) => (
+                      <SelectItem key={a.id} value={a.id}>
+                        {a.full_name?.trim() || a.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">

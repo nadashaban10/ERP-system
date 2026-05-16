@@ -1,8 +1,8 @@
 import type { ShiftEnum } from "@/lib/types/database";
 
 /**
- * Demo-friendly shift windows wired to match `SUPABASE_SETUP` examples / mock bookings.
- * The booking wizard resolves `event_type_id` separately; overlap checks use shifts only.
+ * Default clock windows used for overlap checks vs. `bookings.shift` (`ShiftEnum`).
+ * The booking wizard resolves `event_type_id` separately from these intervals.
  */
 export function shiftTimeWindow(shift: ShiftEnum | string): {
   start_time: string;

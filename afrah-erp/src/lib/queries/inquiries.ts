@@ -100,6 +100,8 @@ export type CreateInquiryInput = {
   package_interest: string | null;
   source: InquirySource;
   notes: string | null;
+  /** Set to creating agent when `role === agent`; owner may omit or choose an agent. */
+  assigned_agent_id: string | null;
 };
 
 /** Context passed into `BookingWizard` when converting an inquiry via `convert_inquiry_to_booking`. */
@@ -188,7 +190,7 @@ export function useCreateInquiry() {
         last_attempt_at: null,
         booking_id: null,
         follow_up_date: null,
-        assigned_agent_id: null,
+        assigned_agent_id: input.assigned_agent_id,
       };
       const response = await supabase.from("inquiries").insert(row).select().single();
       return unwrapMutation<Inquiry>(

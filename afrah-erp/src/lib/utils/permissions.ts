@@ -6,5 +6,6 @@ export function can(
   module: string,
   action: string
 ): boolean {
-  return permissions?.[module]?.[action] === true;
+  const v = permissions?.[module]?.[action] as boolean | number | undefined;
+  return v === true || v === 1;
 }

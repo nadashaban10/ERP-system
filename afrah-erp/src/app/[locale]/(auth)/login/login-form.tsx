@@ -152,10 +152,6 @@ export function LoginForm() {
           {t("loginButton")}
         </Button>
       </form>
-
-      <p className="mt-6 text-center text-xs text-muted-foreground/60">
-        Demo: use any email and password to sign in
-      </p>
     </div>
   );
 }

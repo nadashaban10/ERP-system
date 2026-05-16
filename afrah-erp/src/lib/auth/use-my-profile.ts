@@ -11,7 +11,12 @@ export function useMyProfile() {
       const supabase = createClient();
       const { data, error } = await supabase.rpc("get_my_profile");
       if (error) throw new Error(error.message);
-      return data as unknown as MyProfile;
+      const raw = data as unknown as MyProfile;
+      return {
+        ...raw,
+        permissions:
+          raw.permissions && typeof raw.permissions === "object" ? raw.permissions : {},
+      };
     },
   });
 }

@@ -8,10 +8,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatDate } from "@/lib/utils";
 import { can } from "@/lib/utils/permissions";
 import { useMyProfile } from "@/lib/auth/use-my-profile";
+import { hasPermission } from "@/lib/auth/my-profile";
+import { CreateUserDialog } from "@/features/users";
 import { useAgents, type AgentProfileRow } from "@/lib/queries/useUserManagement";
 import {
   AgentStatusBadge,
-  CreateUserSheet,
   DeactivateUserDialog,
   EditAgentVenuesSheet,
 } from "@/components/user-management";
@@ -44,8 +45,8 @@ export function UsersContent() {
     [profile?.venues]
   );
 
-  const canCreate = profile ? can(profile.permissions, "user_management", "create") : false;
-  const canEdit = profile ? can(profile.permissions, "user_management", "edit") : false;
+  const canEdit = profile ? can(profile.permissions, "users", "edit") : false;
+  const canCreateUsers = profile ? hasPermission(profile, "users.create") : false;
 
   if (profileLoading) {
     return (
@@ -78,7 +79,7 @@ export function UsersContent() {
           <h1 className="text-2xl font-bold tracking-tight">{t("agentsTitle")}</h1>
           <p className="text-sm text-muted-foreground">{t("agentsSubtitle")}</p>
         </div>
-        {canCreate && (
+        {canCreateUsers && (
           <Button className="gap-2" onClick={() => setCreateOpen(true)}>
             <UserPlus className="h-4 w-4" aria-hidden />
             {t("createUserButton")}
@@ -159,12 +160,9 @@ export function UsersContent() {
         </CardContent>
       </Card>
 
-      <CreateUserSheet
-        open={createOpen}
-        onOpenChange={setCreateOpen}
-        callerRole={isSuperAdmin ? "super_admin" : "owner"}
-        callerVenues={callerVenues}
-      />
+      {profile && canCreateUsers && (
+        <CreateUserDialog open={createOpen} onOpenChange={setCreateOpen} profile={profile} />
+      )}
 
       <EditAgentVenuesSheet
         open={!!editVenuesAgent}

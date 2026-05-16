@@ -36,7 +36,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   const t = useTranslations("nav");
   const locale = useLocale();
   const pathname = usePathname();
-  const { data: profile } = useMyProfile();
+  const { data: profile, isLoading: profileLoading } = useMyProfile();
 
   const navItems: NavItem[] = [
     {
@@ -68,7 +68,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       key: "clients",
       href: `/${locale}/clients`,
       icon: <Users className="h-5 w-5" />,
-      requires: ["clients.view", "bookings.view"],
+      requires: ["bookings.view"],
     },
     {
       key: "users",
@@ -85,6 +85,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   ];
 
   const visibleNavItems = navItems.filter((item) => {
+    if (profileLoading) return true;
     if (!item.requires || item.requires.length === 0) return true;
     return item.requires.some((p) => hasPermission(profile, p));
   });
